@@ -6,7 +6,6 @@ const API = 'http://localhost:5000/api';
 
 function OvertimeForm({ token }) {
   const sigCanvasRef = useRef(null);
-  const [profile, setProfile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -37,7 +36,6 @@ function OvertimeForm({ token }) {
         const { data } = await axios.get(`${API}/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setProfile(data);
         setForm(prev => ({
           ...prev,
           employee_name: data.full_name || prev.employee_name,
