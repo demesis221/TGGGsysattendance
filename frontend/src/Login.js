@@ -129,10 +129,10 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div className="flex min-h-screen bg-navy-dark items-center justify-center p-8">
-      <div className="flex w-full max-w-[1100px] h-[75vh] min-h-[600px] rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+    <div className="flex min-h-screen bg-navy-dark items-center justify-center p-4 md:p-8">
+      <div className="flex flex-col md:flex-row w-full max-w-[1100px] md:h-[75vh] min-h-[600px] rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
         {/* Left Side - Hero Section */}
-        <div className="flex-1 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center p-12 relative overflow-hidden">
+        <div className="hidden md:flex flex-1 bg-gradient-to-br from-navy to-navy-light items-center justify-center p-12 relative overflow-hidden">
           {/* Lottie Animation Background - Positioned at bottom */}
           <div className="absolute bottom-0 left-0 right-0 h-[80%] opacity-40">
             <Lottie 
@@ -169,13 +169,23 @@ function Login({ onLogin }) {
         </div>
 
         {/* Right Side - Form Section */}
-        <div className="flex-1 flex items-center justify-center bg-navy-dark p-8 overflow-y-auto scrollbar-none">
+        <div className="flex-1 flex items-center justify-center bg-navy-dark p-4 md:p-8 overflow-y-auto scrollbar-none">
           <div className="w-full max-w-[420px]">
-            <h2 className="text-white text-3xl font-semibold mb-2 tracking-tight">
+            {/* Mobile Logo */}
+            <div className="md:hidden text-center mb-6">
+              <svg width="60" height="60" viewBox="0 0 100 100" fill="none" className="mx-auto mb-3">
+                <circle cx="50" cy="50" r="48" fill="#FF7120" opacity="0.1"/>
+                <circle cx="50" cy="50" r="40" fill="#FF7120"/>
+                <path d="M32 50L43 61L68 36" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <h2 className="text-white text-xl font-semibold">Triple G BuildHub</h2>
+            </div>
+
+            <h2 className="text-white text-2xl md:text-3xl font-semibold mb-2 tracking-tight">
               {isSignup ? 'Create an account' : 'Welcome Back'}
             </h2>
             
-            <p className="text-gray-400 mb-6 text-sm">
+            <p className="text-gray-400 mb-4 md:mb-6 text-xs md:text-sm">
               {isSignup ? (
                 <>Already have an account? <button className="text-primary font-semibold underline hover:text-primary-dark" onClick={() => setIsSignup(false)}>Log in</button></>
               ) : (
@@ -185,7 +195,7 @@ function Login({ onLogin }) {
 
             <form onSubmit={isSignup ? handleSignup : handleLogin}>
               {isSignup && (
-                <div className="flex gap-4 mb-4">
+                <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-4">
                   <input
                     type="text"
                     name="firstName"
@@ -214,7 +224,7 @@ function Login({ onLogin }) {
                 value={formData.email}
                 onChange={handleInputChange}
                 required
-                className="w-full px-4 py-3.5 mb-4 bg-navy border-2 border-primary/20 rounded-xl text-white text-base transition-all focus:outline-none focus:border-primary focus:bg-navy-light focus:shadow-[0_0_0_3px_rgba(255,113,32,0.1)] focus:-translate-y-0.5 placeholder:text-gray-500"
+                className="w-full px-3 md:px-4 py-3 md:py-3.5 mb-3 md:mb-4 bg-navy border-2 border-primary/20 rounded-xl text-white text-sm md:text-base transition-all focus:outline-none focus:border-primary focus:bg-navy-light focus:shadow-[0_0_0_3px_rgba(255,113,32,0.1)] focus:-translate-y-0.5 placeholder:text-gray-500"
               />
 
               <div className="relative mb-2">
@@ -244,8 +254,8 @@ function Login({ onLogin }) {
               </div>
 
               {!isSignup && (
-                <div className="flex items-center justify-between mb-5">
-                  <label className="flex items-center gap-2 text-gray-300 text-sm cursor-pointer">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-5 gap-2 md:gap-0">
+                  <label className="flex items-center gap-2 text-gray-300 text-xs md:text-sm cursor-pointer">
                     <input
                       type="checkbox"
                       name="rememberMe"
@@ -255,12 +265,12 @@ function Login({ onLogin }) {
                     />
                     <span>Remember me</span>
                   </label>
-                  <button type="button" className="text-primary text-sm hover:text-primary-dark hover:underline transition-colors" style={{background: 'none', border: 'none', cursor: 'pointer'}}>Forgot password?</button>
+                  <button type="button" className="text-primary text-xs md:text-sm hover:text-primary-dark hover:underline transition-colors" style={{background: 'none', border: 'none', cursor: 'pointer'}}>Forgot password?</button>
                 </div>
               )}
 
               {isSignup && (
-                <label className="flex items-center gap-2 mb-6 text-gray-300 text-sm cursor-pointer">
+                <label className="flex items-center gap-2 mb-4 md:mb-6 text-gray-300 text-xs md:text-sm cursor-pointer">
                   <input
                     type="checkbox"
                     name="acceptTerms"
@@ -285,7 +295,7 @@ function Login({ onLogin }) {
 
               <button 
                 type="submit" 
-                className="w-full px-4 py-4 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl font-semibold text-base transition-all shadow-[0_4px_12px_rgba(255,113,32,0.3)] hover:shadow-[0_6px_20px_rgba(255,113,32,0.5)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed mb-6 tracking-wide"
+                className="w-full px-4 py-3 md:py-4 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl font-semibold text-sm md:text-base transition-all shadow-[0_4px_12px_rgba(255,113,32,0.3)] hover:shadow-[0_6px_20px_rgba(255,113,32,0.5)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed mb-4 md:mb-6 tracking-wide"
                 disabled={isLoading}
               >
                 {isLoading ? (
