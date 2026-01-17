@@ -4,7 +4,7 @@ import Alert from './components/Alert';
 
 const API = 'http://localhost:5000/api';
 
-function OvertimeForm({ token, user }) {
+function OvertimeForm({ token }) {
   const sigCanvasRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [saving, setSaving] = useState(false);

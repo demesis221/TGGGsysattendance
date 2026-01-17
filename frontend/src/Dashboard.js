@@ -16,11 +16,6 @@ function Dashboard({ token, user, onLogout }) {
   const [buttonLoading, setButtonLoading] = useState(false);
   const today = new Date().toISOString().split('T')[0];
   const todaysOpen = attendance.find(a => a.date === today && !a.time_out);
-  const pendingOlder = attendance.filter(a => !a.time_out && a.date < today);
-  const showOtReminder = (() => {
-    const minutes = new Date().getHours() * 60 + new Date().getMinutes();
-    return minutes >= 14 * 60 + 30 && minutes < 16 * 60;
-  })();
   const canCheckInNow = () => {
     const minutes = new Date().getHours() * 60 + new Date().getMinutes();
     const inMorning = minutes >= 5 * 60 && minutes < 12 * 60; // clickable early, counted window still 8-12
@@ -234,31 +229,7 @@ function Dashboard({ token, user, onLogout }) {
     }
   };
 
-  const overtimeCheckIn = async (id) => {
-    setButtonLoading(true);
-    try {
-      await axios.put(`${API}/attendance/overtime-in/${id}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      showAlert('success', 'OT Check-In!', 'Your overtime check-in has been recorded.');
-      fetchAttendance();
-    } finally {
-      setButtonLoading(false);
-    }
-  };
 
-  const overtimeCheckOut = async (id) => {
-    setButtonLoading(true);
-    try {
-      await axios.put(`${API}/attendance/overtime-out/${id}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      showAlert('success', 'OT Check-Out!', 'Your overtime check-out has been recorded.');
-      fetchAttendance();
-    } finally {
-      setButtonLoading(false);
-    }
-  };
 
   return (
     <div>

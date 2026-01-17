@@ -30,6 +30,7 @@ function App() {
       const interval = setInterval(checkTokenValidity, 60000); // Check every minute
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   useEffect(() => {

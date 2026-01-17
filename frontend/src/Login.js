@@ -115,7 +115,7 @@ function Login({ onLogin }) {
 
   const handleGoogleSignIn = async () => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: window.location.origin
@@ -255,7 +255,7 @@ function Login({ onLogin }) {
                     />
                     <span>Remember me</span>
                   </label>
-                  <a href="#" className="text-primary text-sm hover:text-primary-dark hover:underline transition-colors">Forgot password?</a>
+                  <button type="button" className="text-primary text-sm hover:text-primary-dark hover:underline transition-colors" style={{background: 'none', border: 'none', cursor: 'pointer'}}>Forgot password?</button>
                 </div>
               )}
 
@@ -268,7 +268,7 @@ function Login({ onLogin }) {
                     onChange={handleInputChange}
                     className="w-[18px] h-[18px] cursor-pointer accent-primary"
                   />
-                  <span>I agree to the <a href="#" className="text-primary hover:underline">Terms & Conditions</a></span>
+                  <span>I agree to the <button type="button" className="text-primary hover:underline" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}>Terms & Conditions</button></span>
                 </label>
               )}
 

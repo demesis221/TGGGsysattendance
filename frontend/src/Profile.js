@@ -20,6 +20,7 @@ function Profile({ token, user, onLogout }) {
   useEffect(() => {
     fetchProfile();
     fetchAttendanceHours();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const parseHours = (timeStr) => {
