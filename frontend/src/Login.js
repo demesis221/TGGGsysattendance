@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import Lottie from 'lottie-react';
 import cityBuildingAnimation from './cityBuilding.json';
 
-const API = 'http://localhost:5000/api';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL || 'YOUR_SUPABASE_URL',
   process.env.REACT_APP_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY'

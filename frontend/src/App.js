@@ -10,6 +10,8 @@ import OvertimeStatus from './OvertimeStatus';
 import OvertimeRequests from './OvertimeRequests';
 import './App.css';
 
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
 function App() {
   const [token, setToken] = useState(
     localStorage.getItem('token') || sessionStorage.getItem('token')
@@ -37,7 +39,7 @@ function App() {
     if (!token) return;
     const loadNotifications = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/attendance/my', {
+        const { data } = await axios.get(`${API}/attendance/my`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const today = new Date().toISOString().split('T')[0];
@@ -72,7 +74,7 @@ function App() {
 
   const checkTokenValidity = async () => {
     try {
-      await axios.get('http://localhost:5000/api/profile', {
+      await axios.get(`${API}/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
     } catch (err) {
@@ -89,7 +91,7 @@ function App() {
 
   const fetchUserProfile = async () => {
     try {
-      const { data } = await axios.get('http://localhost:5000/api/profile', {
+      const { data } = await axios.get(`${API}/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserProfile(data);

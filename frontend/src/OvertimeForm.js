@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Alert from './components/Alert';
 
-const API = 'http://localhost:5000/api';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 function OvertimeForm({ token }) {
   const sigCanvasRef = useRef(null);
