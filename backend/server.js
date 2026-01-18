@@ -821,5 +821,67 @@ app.put('/api/notifications/:id/read', auth, async (req, res) => {
   }
 });
 
+// Admin manual check-in for users
+app.post('/api/admin/checkin/:userId', auth, async (req, res) => {
+  try {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', req.user.id)
+      .single();
+    
+    if (profile?.role !== 'coordinator') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { time_in, date } = req.body;
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    const { data, error } = await supabaseAdmin
+      .from('attendance')
+      .insert({ 
+        user_id: req.params.userId, 
+        date: targetDate, 
+        time_in, 
+        status: 'On-Time',
+        late_deduction_hours: 0
+      })
+      .select()
+      .single();
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin manual check-out for users
+app.put('/api/admin/checkout/:attendanceId', auth, async (req, res) => {
+  try {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', req.user.id)
+      .single();
+    
+    if (profile?.role !== 'coordinator') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { time_out } = req.body;
+
+    const { error } = await supabaseAdmin
+      .from('attendance')
+      .update({ time_out })
+      .eq('id', req.params.attendanceId);
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

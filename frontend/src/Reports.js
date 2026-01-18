@@ -10,6 +10,8 @@ function Reports({ token }) {
   const [allAttendance, setAllAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminAction, setAdminAction] = useState({ type: '', record: null });
 
   useEffect(() => {
     const loadData = async () => {
@@ -70,6 +72,40 @@ function Reports({ token }) {
     const totalHours = (total * 8) - totalLateHours;
     
     return { total, onTime, late, totalLateHours, totalHours };
+  };
+
+  const handleAdminCheckIn = async () => {
+    const now = new Date();
+    const timeIn = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+    try {
+      await axios.post(`${API}/admin/checkin/${selectedIntern.id}`, 
+        { time_in: timeIn },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert('Check-in successful');
+      await fetchAllAttendance();
+      await fetchInternAttendance(selectedIntern.id);
+      setShowAdminModal(false);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to check in');
+    }
+  };
+
+  const handleAdminCheckOut = async (attendanceId) => {
+    const now = new Date();
+    const timeOut = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+    try {
+      await axios.put(`${API}/admin/checkout/${attendanceId}`, 
+        { time_out: timeOut },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert('Check-out successful');
+      await fetchAllAttendance();
+      await fetchInternAttendance(selectedIntern.id);
+      setShowAdminModal(false);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to check out');
+    }
   };
 
   return (
@@ -205,19 +241,39 @@ function Reports({ token }) {
               alignItems: 'center'
             }}>
               <h3 style={{ color: '#ffffff', margin: 0 }}>{selectedIntern.full_name}'s Attendance Records</h3>
-              <button 
-                onClick={() => setShowModal(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#FF7120',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  padding: '0.5rem'
-                }}
-              >
-                ✕
-              </button>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <button 
+                  onClick={() => {
+                    setAdminAction({ type: 'checkin', record: null });
+                    setShowAdminModal(true);
+                  }}
+                  style={{
+                    background: '#FF7120',
+                    border: 'none',
+                    color: 'white',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    fontWeight: '600'
+                  }}
+                >
+                  + Check In
+                </button>
+                <button 
+                  onClick={() => setShowModal(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#FF7120',
+                    fontSize: '1.5rem',
+                    cursor: 'pointer',
+                    padding: '0.5rem'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <div style={{ padding: '2rem', maxHeight: '70vh', overflow: 'auto' }}>
               <div style={{ display: 'grid', gap: '1rem' }}>
@@ -242,6 +298,27 @@ function Reports({ token }) {
                         <span className={`status-badge ${record.status === 'On-Time' ? 'status-ontime' : 'status-late'}`}>
                           {record.status}
                         </span>
+                        {!record.time_out && (
+                          <button
+                            onClick={() => {
+                              setAdminAction({ type: 'checkout', record });
+                              setShowAdminModal(true);
+                            }}
+                            style={{
+                              marginLeft: '0.5rem',
+                              background: '#FF7120',
+                              border: 'none',
+                              color: 'white',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                              fontWeight: '600'
+                            }}
+                          >
+                            Check Out
+                          </button>
+                        )}
                       </div>
                       {record.photo_path && (
                         <img
@@ -296,6 +373,71 @@ function Reports({ token }) {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAdminModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001
+        }}>
+          <div style={{
+            background: '#001f35',
+            borderRadius: '12px',
+            padding: '2rem',
+            maxWidth: '400px',
+            border: '1px solid rgba(255, 113, 32, 0.2)'
+          }}>
+            <h3 style={{ color: '#ffffff', marginBottom: '1rem' }}>
+              {adminAction.type === 'checkin' ? 'Manual Check-In' : 'Manual Check-Out'}
+            </h3>
+            <p style={{ color: '#a0a4a8', marginBottom: '1.5rem' }}>
+              {adminAction.type === 'checkin' 
+                ? `Check in ${selectedIntern?.full_name} for today?`
+                : `Check out ${selectedIntern?.full_name} for this session?`
+              }
+            </p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                onClick={() => adminAction.type === 'checkin' ? handleAdminCheckIn() : handleAdminCheckOut(adminAction.record.id)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: '#FF7120',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setShowAdminModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: 'transparent',
+                  color: '#FF7120',
+                  border: '1px solid #FF7120',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
