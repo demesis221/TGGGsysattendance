@@ -517,34 +517,32 @@ function Dashboard({ token, user, onLogout }) {
                       : 'Check in first to document your work'}
               </p>
               <div style={{ display: 'flex', gap: '20px', marginTop: '1rem', flexWrap: 'wrap' }}>
-                {todaysOpen && (
-                  <button 
-                    onClick={() => checkOut(todaysOpen.id)}
-                    disabled={buttonLoading || !canCheckOutNow(todaysOpen)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      opacity: !canCheckOutNow(todaysOpen) ? 0.6 : 1,
-                      cursor: !canCheckOutNow(todaysOpen) ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    {buttonLoading ? (
-                      <>
-                        <div style={{
-                          width: '16px',
-                          height: '16px',
-                          border: '2px solid transparent',
-                          borderTop: '2px solid white',
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite'
-                        }}></div>
-                        Processing...
-                      </>
-                    ) : 'Time Out'}
-                  </button>
-                )}
+                <button 
+                  onClick={() => todaysOpen && checkOut(todaysOpen.id)}
+                  disabled={buttonLoading || !todaysOpen || !canCheckOutNow(todaysOpen)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    opacity: (!todaysOpen || !canCheckOutNow(todaysOpen)) ? 0.6 : 1,
+                    cursor: (!todaysOpen || !canCheckOutNow(todaysOpen)) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {buttonLoading ? (
+                    <>
+                      <div style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '2px solid transparent',
+                        borderTop: '2px solid white',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                      Processing...
+                    </>
+                  ) : 'Time Out'}
+                </button>
               </div>
             </div>
           </div>
