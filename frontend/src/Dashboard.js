@@ -36,6 +36,16 @@ function Dashboard({ token, user, onLogout }) {
 
   const parseMinutes = (timeStr) => {
     if (!timeStr) return null;
+    
+    // Check if it's in 24-hour format (HH:MM:SS or HH:MM)
+    if (!timeStr.includes('AM') && !timeStr.includes('PM')) {
+      const parts = timeStr.split(':');
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      return h * 60 + m;
+    }
+    
+    // Parse 12-hour format (HH:MM AM/PM)
     const [time, meridiem] = timeStr.split(' ');
     if (!meridiem) return null;
     let [h, m] = time.split(':').map(Number);

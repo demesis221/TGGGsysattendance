@@ -175,11 +175,11 @@ app.post('/api/attendance/checkin', auth, upload.single('photo'), async (req, re
     const minutesSinceMidnight = h * 60 + m;
 
     // Morning window baseline: 08:05, late <=09:00 deduct 1hr, >=09:00 deduct 2hr
-    // Afternoon window baseline: 13:05, late <=14:00 deduct 1hr, >=14:00 deduct 2hr
+    // Afternoon window baseline: 13:00, late >5min (13:05) deduct 1hr
     const morningBaseline = 8 * 60 + 5;
     const morningLate = 9 * 60;
-    const afternoonBaseline = 13 * 60 + 5;
-    const afternoonLate = 14 * 60;
+    const afternoonBaseline = 13 * 60; // 1:00 PM
+    const afternoonLateThreshold = 13 * 60 + 5; // 1:05 PM
 
     const isMorning = minutesSinceMidnight < 12 * 60;
     let lateDeduction = 0;
@@ -193,10 +193,11 @@ app.post('/api/attendance/checkin', auth, upload.single('photo'), async (req, re
         lateDeduction = minutesSinceMidnight >= morningLate ? 2 : 1;
       }
     } else {
-      if (minutesSinceMidnight > afternoonBaseline) {
+      // Afternoon: late if after 1:05 PM, deduct 1 hour
+      if (minutesSinceMidnight > afternoonLateThreshold) {
         lateMinutes = minutesSinceMidnight - afternoonBaseline;
         status = 'Late';
-        lateDeduction = minutesSinceMidnight >= afternoonLate ? 2 : 1;
+        lateDeduction = 1;
       }
     }
     
