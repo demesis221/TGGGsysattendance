@@ -21,6 +21,22 @@ const upload = multer({
   }
 });
 
+const uploadDocs = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain'
+    ];
+    allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error('Invalid file type'));
+  }
+});
+
 const auth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -158,11 +174,11 @@ app.post('/api/attendance/checkin', auth, upload.single('photo'), async (req, re
     const [h, m] = timeIn24.split(':').map(v => parseInt(v, 10));
     const minutesSinceMidnight = h * 60 + m;
 
-    // Morning window baseline: 08:00, late <=09:00 deduct 1hr, >=09:00 deduct 2hr
-    // Afternoon window baseline: 13:00, late <=14:00 deduct 1hr, >=14:00 deduct 2hr
-    const morningBaseline = 8 * 60;
+    // Morning window baseline: 08:05, late <=09:00 deduct 1hr, >=09:00 deduct 2hr
+    // Afternoon window baseline: 13:05, late <=14:00 deduct 1hr, >=14:00 deduct 2hr
+    const morningBaseline = 8 * 60 + 5;
     const morningLate = 9 * 60;
-    const afternoonBaseline = 13 * 60;
+    const afternoonBaseline = 13 * 60 + 5;
     const afternoonLate = 14 * 60;
 
     const isMorning = minutesSinceMidnight < 12 * 60;
@@ -244,7 +260,7 @@ function convertTo24Hour(time12h) {
   return `${hours.toString().padStart(2, '0')}:${minutes}`;
 }
 
-app.put('/api/attendance/checkout/:id', auth, async (req, res) => {
+app.put('/api/attendance/checkout/:id', auth, uploadDocs.array('attachments', 5), async (req, res) => {
   try {
     const { time_out, work_documentation } = req.body;
     console.log('Checkout request:', { id: req.params.id, time_out, work_documentation, user_id: req.user.id });
@@ -260,9 +276,40 @@ app.put('/api/attendance/checkout/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Attendance entry not found.' });
     }
 
+    let attachmentUrls = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileExt = file.originalname.split('.').pop();
+        const fileName = `${req.user.id}/${uuidv4()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from('workdocs')
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+            upsert: false
+          });
+        
+        if (uploadError) {
+          console.error('File upload error:', uploadError);
+          continue;
+        }
+        
+        const { data: { publicUrl } } = supabaseAdmin.storage
+          .from('workdocs')
+          .getPublicUrl(fileName);
+        
+        attachmentUrls.push(publicUrl);
+      }
+    }
+
+    const updateData = { time_out, work_documentation };
+    if (attachmentUrls.length > 0) {
+      updateData.attachments = attachmentUrls;
+    }
+
     const { error } = await supabaseAdmin
       .from('attendance')
-      .update({ time_out, work_documentation })
+      .update(updateData)
       .eq('id', req.params.id)
       .eq('user_id', req.user.id);
     
@@ -581,6 +628,34 @@ app.post('/api/overtime', auth, async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Get all coordinators
+    const { data: coordinators } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('role', 'coordinator');
+
+    // Create notification for all coordinators
+    if (coordinators && coordinators.length > 0) {
+      const notifications = coordinators.map(coord => ({
+        user_id: coord.id,
+        type: 'ot_submitted',
+        title: 'New Overtime Request',
+        message: `${employee_name} submitted an overtime request.`,
+        link: 'overtime-requests'
+      }));
+      
+      console.log('Creating notifications for coordinators:', notifications);
+      const { data: notifData, error: notifError } = await supabaseAdmin
+        .from('notifications')
+        .insert(notifications);
+      
+      if (notifError) {
+        console.error('Notification insert error:', notifError);
+      } else {
+        console.log('Notifications created successfully:', notifData);
+      }
+    }
+
     res.status(201).json({ success: true, id: data.id });
   } catch (err) {
     console.error('Overtime insert exception:', err);
@@ -659,6 +734,13 @@ app.put('/api/overtime/:id/approve', auth, async (req, res) => {
       approval_date
     } = req.body;
 
+    // Get overtime request details
+    const { data: otRequest } = await supabaseAdmin
+      .from('overtime_requests')
+      .select('user_id, employee_name')
+      .eq('id', req.params.id)
+      .single();
+
     const { error } = await supabaseAdmin
       .from('overtime_requests')
       .update({
@@ -673,10 +755,63 @@ app.put('/api/overtime/:id/approve', auth, async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Create notification for intern
+    if (otRequest?.user_id) {
+      console.log('Creating notification for user:', otRequest.user_id);
+      const { data: notifData, error: notifError } = await supabaseAdmin
+        .from('notifications')
+        .insert({
+          user_id: otRequest.user_id,
+          type: 'ot_approved',
+          title: 'Overtime Approved',
+          message: 'Your overtime request has been approved by the coordinator.',
+          link: 'overtime-status'
+        });
+      
+      if (notifError) {
+        console.error('Notification insert error:', notifError);
+      } else {
+        console.log('Notification created successfully:', notifData);
+      }
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error('Overtime approval exception:', err);
     res.status(500).json({ error: 'Failed to update overtime approval.' });
+  }
+});
+
+// Notification endpoints
+app.get('/api/notifications', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('notifications')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false });
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  } catch (err) {
+    console.error('Notifications fetch exception:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/notifications/:id/read', auth, async (req, res) => {
+  try {
+    const { error } = await supabaseAdmin
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id);
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Mark notification read exception:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
