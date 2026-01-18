@@ -154,10 +154,10 @@ function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 auto', minWidth: '200px' }}>
           <img 
             src="/imgs/logostick.png" 
-            alt="Triple G BuildHub Logo" 
+            alt="Triple G AOC Logo" 
             style={{ height: '32px', width: 'auto' }}
           />
-          <h1 style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1.25rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Triple<span style={{ color: '#FF7120', fontSize: '1.2em', fontWeight: '700' }}>G</span> BuildHub</h1>
+          <h1 style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1.25rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Triple<span style={{ color: '#FF7120', fontSize: '1.2em', fontWeight: '700' }}>G</span> AOC</h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <button 
