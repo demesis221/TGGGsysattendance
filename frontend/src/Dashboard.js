@@ -499,7 +499,7 @@ function Dashboard({ token, user, onLogout }) {
                 <div style={{position: 'relative'}}>
                   <input 
                     type="file" 
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" 
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg" 
                     multiple
                     onChange={(e) => setAttachments(Array.from(e.target.files))}
                     disabled={!todaysOpen}
@@ -535,7 +535,7 @@ function Dashboard({ token, user, onLogout }) {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
                     </svg>
-                    {attachments.length > 0 ? `${attachments.length} file(s) selected` : 'Attach files (PDF, Word, Excel)'}
+                    {attachments.length > 0 ? `${attachments.length} file(s) selected` : 'Attach files (PDF, Word, Excel, Images)'}
                   </label>
                 </div>
                 {attachments.length > 0 && (
