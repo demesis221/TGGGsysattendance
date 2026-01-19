@@ -18,20 +18,44 @@ function Dashboard({ token, user, onLogout }) {
   const [selectedIntern, setSelectedIntern] = useState('all');
   const [buttonLoading, setButtonLoading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const today = new Date().toISOString().split('T')[0];
+  
+  // Get current date/time in Philippines timezone (UTC+8)
+  const getPhilippinesDate = () => {
+    const now = new Date();
+    const phTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    return phTime.toISOString().split('T')[0];
+  };
+  
+  const getPhilippinesTime = () => {
+    const now = new Date();
+    return now.toLocaleTimeString('en-US', { 
+      timeZone: 'Asia/Manila',
+      hour12: true, 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+  
+  const today = getPhilippinesDate();
   const todaysOpen = attendance.find(a => a.date === today && !a.time_out);
   const todaysEntries = attendance.filter(a => a.date === today);
   
   // Debug logging
   useEffect(() => {
     console.log('DEBUG - Today:', today);
+    console.log('DEBUG - Current time:', new Date().toLocaleTimeString());
     console.log('DEBUG - Attendance data:', attendance);
     console.log('DEBUG - Todays entries:', todaysEntries);
     console.log('DEBUG - Todays open session:', todaysOpen);
+    if (attendance.length > 0) {
+      console.log('DEBUG - All dates:', attendance.map(a => a.date));
+    }
   }, [attendance, today, todaysEntries, todaysOpen]);
   
   const canCheckInNow = () => {
-    const minutes = new Date().getHours() * 60 + new Date().getMinutes();
+    const now = new Date();
+    const phTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const minutes = phTime.getHours() * 60 + phTime.getMinutes();
     const inMorning = minutes >= 5 * 60 && minutes < 12 * 60;
     const inAfternoon = minutes >= 13 * 60 && minutes < 17 * 60;
     const inOvertime = minutes >= 19 * 60 && minutes < 22 * 60;
@@ -67,7 +91,9 @@ function Dashboard({ token, user, onLogout }) {
 
   const canCheckOutNow = (entry) => {
     if (!entry || !entry.time_in) return false;
-    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    const now = new Date();
+    const phTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const nowMinutes = phTime.getHours() * 60 + phTime.getMinutes();
     const startMinutes = parseMinutes(entry.time_in);
     if (startMinutes === null) return false;
     const isMorning = startMinutes < 12 * 60;
@@ -212,8 +238,7 @@ function Dashboard({ token, user, onLogout }) {
 
     setButtonLoading(true);
     try {
-      const now = new Date();
-      const timeIn = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+      const timeIn = getPhilippinesTime();
       const formData = new FormData();
       formData.append('time_in', timeIn);
       
@@ -251,7 +276,7 @@ function Dashboard({ token, user, onLogout }) {
 
     setButtonLoading(true);
     try {
-      const timeOut = new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+      const timeOut = getPhilippinesTime();
       const formData = new FormData();
       formData.append('time_out', timeOut);
       formData.append('work_documentation', workDoc);

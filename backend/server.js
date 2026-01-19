@@ -152,7 +152,9 @@ app.post('/api/auth/google', async (req, res) => {
 app.post('/api/attendance/checkin', auth, upload.single('photo'), async (req, res) => {
   try {
     const { time_in } = req.body;
-    const date = new Date().toISOString().split('T')[0];
+    // Use Philippines timezone for date
+    const phDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' });
+    const date = new Date(phDate).toISOString().split('T')[0];
 
     // Allow up to 2 check-ins per day (morning + afternoon)
     const { data: existingCheckins, error: existingError } = await supabaseAdmin
@@ -332,7 +334,9 @@ app.put('/api/attendance/checkout/:id', auth, uploadDocs.array('attachments', 5)
 });
 
 app.put('/api/attendance/overtime-in/:id', auth, async (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+  // Use Philippines timezone for date
+  const phDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' });
+  const today = new Date(phDate).toISOString().split('T')[0];
   // Require afternoon checkout to be completed
   const { data: afternoon, error: afternoonError } = await supabaseAdmin
     .from('attendance')
