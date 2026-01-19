@@ -31,7 +31,10 @@ const uploadDocs = multer({
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain'
+      'text/plain',
+      'image/jpeg',
+      'image/png',
+      'image/jpg'
     ];
     allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error('Invalid file type'));
   }
