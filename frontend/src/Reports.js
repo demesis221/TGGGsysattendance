@@ -62,6 +62,15 @@ function Reports({ token }) {
     setShowModal(true);
   };
 
+  const parseTime = (timeStr) => {
+    if (!timeStr) return null;
+    const [time, period] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
   const calculateStats = (internId) => {
     const internAttendance = allAttendance.filter(a => a.user_id === internId);
     const total = internAttendance.length;
@@ -69,8 +78,19 @@ function Reports({ token }) {
     const late = internAttendance.filter(a => a.status === 'Late').length;
     const totalLateHours = internAttendance.reduce((sum, a) => sum + (a.late_deduction_hours || 0), 0);
     
-    // Calculate total work hours (8 hours per day minus late deductions)
-    const totalHours = (total * 8) - totalLateHours;
+    // Calculate actual hours worked from time_in and time_out
+    let totalMinutes = 0;
+    internAttendance.forEach(record => {
+      if (record.time_in && record.time_out) {
+        const inMinutes = parseTime(record.time_in);
+        const outMinutes = parseTime(record.time_out);
+        if (inMinutes !== null && outMinutes !== null) {
+          totalMinutes += (outMinutes - inMinutes);
+        }
+      }
+    });
+    
+    const totalHours = Math.round((totalMinutes / 60) - totalLateHours);
     
     return { total, onTime, late, totalLateHours, totalHours };
   };

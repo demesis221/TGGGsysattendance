@@ -54,33 +54,30 @@ function Profile({ token, user, onLogout }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       let total = 0;
-      const clampMorningHours = (start, end) => {
-        const MORNING_START = 8;
-        const MORNING_END = 12;
-        const effectiveStart = Math.max(start, MORNING_START);
-        const effectiveEnd = Math.min(end, MORNING_END);
-        const span = Math.max(0, effectiveEnd - effectiveStart);
-        return Math.min(span, 4);
-      };
       data.forEach(a => {
         const start = parseHours(a.time_in);
         const end = parseHours(a.time_out);
+        let sessionHours = 0;
+        
+        // Calculate actual hours worked for this session
         if (start !== null && end !== null) {
-          if (start < 12) {
-            total += clampMorningHours(start, end);
-          } else {
-            total += Math.max(0, end - start);
-          }
+          sessionHours = Math.max(0, end - start);
         }
+        
+        // Subtract late deduction for this session
+        if (a.late_deduction_hours) {
+          sessionHours = Math.max(0, sessionHours - a.late_deduction_hours);
+        }
+        
+        total += sessionHours;
+        
+        // Add overtime hours if present
         if (a.ot_time_in && a.ot_time_out) {
           const otStart = parseHours(a.ot_time_in);
           const otEnd = parseHours(a.ot_time_out);
           if (otStart !== null && otEnd !== null) {
             total += Math.max(0, otEnd - otStart);
           }
-        }
-        if (a.late_deduction_hours) {
-          total = Math.max(0, total - a.late_deduction_hours);
         }
       });
       setTotalHours(total);
