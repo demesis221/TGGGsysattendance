@@ -23,6 +23,9 @@ function OvertimeRequests({ token }) {
   const [alert, setAlert] = useState(null);
   const [loading, setLoading] = useState(true);
   const [approvalDate, setApprovalDate] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterEmployee, setFilterEmployee] = useState('all');
+  const [filterDate, setFilterDate] = useState('');
 
   useEffect(() => {
     load();
@@ -154,8 +157,80 @@ function OvertimeRequests({ token }) {
         <p>Coordinator view of all overtime submissions</p>
       </div>
       <div className="attendance-table" style={{boxSizing: 'border-box', maxWidth: '100%'}}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: '1rem' }}>
           <h3 style={{ margin: 0 }}>All Requests</h3>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#00273C',
+                color: '#e8eaed',
+                border: '1px solid rgba(255, 113, 32, 0.3)',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="all">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+            </select>
+            <select
+              value={filterEmployee}
+              onChange={(e) => setFilterEmployee(e.target.value)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#00273C',
+                color: '#e8eaed',
+                border: '1px solid rgba(255, 113, 32, 0.3)',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="all">All Employees</option>
+              {[...new Set(requests.map(r => r.full_name || r.employee_name))].map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#00273C',
+                color: '#e8eaed',
+                border: '1px solid rgba(255, 113, 32, 0.3)',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                cursor: 'pointer'
+              }}
+            />
+            {(filterStatus !== 'all' || filterEmployee !== 'all' || filterDate) && (
+              <button
+                onClick={() => {
+                  setFilterStatus('all');
+                  setFilterEmployee('all');
+                  setFilterDate('');
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'rgba(255, 113, 32, 0.2)',
+                  color: '#FF7120',
+                  border: '1px solid rgba(255, 113, 32, 0.3)',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
         {loading ? (
           <TableSkeleton />
@@ -175,12 +250,16 @@ function OvertimeRequests({ token }) {
             <tbody>
               {requests.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
+                  <td colSpan="6" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
                     No requests yet.
                   </td>
                 </tr>
               ) : (
-                requests.map(req => (
+                requests
+                  .filter(req => filterStatus === 'all' || statusLabel(req) === filterStatus)
+                  .filter(req => filterEmployee === 'all' || (req.full_name || req.employee_name) === filterEmployee)
+                  .filter(req => !filterDate || req.date_completed === filterDate)
+                  .map(req => (
                   <tr key={req.id} onClick={() => openDetail(req)} style={{ cursor: 'pointer' }}>
                     <td>{req.full_name || req.employee_name}</td>
                     <td>{req.department || '-'}</td>

@@ -198,8 +198,10 @@ function Profile({ token, user, onLogout }) {
             
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
               <div style={{
-                width: '120px',
-                height: '120px',
+                width: '100px',
+                height: '100px',
+                minWidth: '100px',
+                minHeight: '100px',
                 borderRadius: '50%',
                 background: '#00273C',
                 border: '3px solid #FF7120',
@@ -207,7 +209,8 @@ function Profile({ token, user, onLogout }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                flexShrink: 0
               }}>
                 {profile.profile_picture ? (
                   <img 

@@ -315,15 +315,18 @@ function Dashboard({ token, user, onLogout }) {
               <p>Role: {user.role === 'coordinator' ? 'Head Coordinator' : 'Intern'}</p>
             </div>
             <div style={{
-              width: '60px',
-              height: '60px',
+              width: '50px',
+              height: '50px',
+              minWidth: '50px',
+              minHeight: '50px',
               borderRadius: '50%',
               border: '3px solid #FF7120',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               overflow: 'hidden',
-              background: '#00273C'
+              background: '#00273C',
+              flexShrink: 0
             }}>
               {userProfile?.profile_picture ? (
                 <img 
