@@ -14,11 +14,6 @@ import './App.css';
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 function App() {
-  // Clear sessionStorage if rememberMe is OFF (browser was closed and reopened)
-  const rememberMe = localStorage.getItem('rememberMe');
-  if (!rememberMe) {
-    sessionStorage.clear();
-  }
 
   const [token, setToken] = useState(
     localStorage.getItem('token') || sessionStorage.getItem('token')

@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { createClient } from '@supabase/supabase-js';
 import Alert from './components/Alert';
 import { CardSkeleton } from './components/SkeletonLoader';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL || 'YOUR_SUPABASE_URL',
+  process.env.REACT_APP_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY'
+);
 
 const getTodayDate = () => {
   const now = new Date();
@@ -187,8 +192,42 @@ function OvertimeForm({ token }) {
     }
     setSaving(true);
     try {
+      let signatureUrl = form.employee_signature;
+
+      // Upload signature to Supabase bucket if it's a data URL
+      if (form.employee_signature && form.employee_signature.startsWith('data:')) {
+        try {
+          const canvas = sigCanvasRef.current;
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+          const timestamp = Date.now();
+          const fileName = `signature_${timestamp}_${form.employee_name.replace(/\s+/g, '_')}.png`;
+          
+          const { data, error } = await supabase.storage
+            .from('signature')
+            .upload(fileName, blob, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (error) {
+            console.error('Signature upload error:', error);
+            setAlert({ type: 'error', title: 'Upload warning', message: 'Signature uploaded locally but bucket save failed. Proceeding with submission.' });
+          } else {
+            // Get public URL
+            const { data: publicData } = supabase.storage
+              .from('signature')
+              .getPublicUrl(data.path);
+            signatureUrl = publicData.publicUrl;
+          }
+        } catch (uploadErr) {
+          console.error('Signature upload failed:', uploadErr);
+          // Continue with data URL if bucket upload fails
+        }
+      }
+
       const payload = {
         ...form,
+        employee_signature: signatureUrl,
         periods: periods.filter(p => p.start_date || p.end_date || p.start_time || p.end_time)
       };
       await axios.post(`${API}/overtime`, payload, {
