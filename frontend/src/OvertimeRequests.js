@@ -84,59 +84,355 @@ function OvertimeRequests({ token }) {
     const doc = window.open('', '_blank');
     if (!doc) return;
     const periods = Array.isArray(req.periods) ? req.periods : [];
-    const periodRows = periods.map((period, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${escapeHtml(period.start_date || '-')}</td>
-        <td>${escapeHtml(period.start_time || '-')}</td>
-        <td>${escapeHtml(period.end_date || '-')}</td>
-        <td>${escapeHtml(period.end_time || '-')}</td>
-      </tr>
-    `).join('');
+    
+    // Generate period rows for the table (5 rows minimum)
+    const periodRows = [];
+    for (let i = 0; i < 5; i++) {
+      const period = periods[i];
+      periodRows.push(`
+        <tr>
+          <td class="period-cell">${period ? escapeHtml(period.start_date || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(period.start_time || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(period.end_date || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(period.end_time || '') : ''}</td>
+        </tr>
+      `);
+    }
+
     const html = `
       <html>
         <head>
-          <title>Overtime Report</title>
+          <title>Overtime Request Form</title>
           <style>
-            body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 2rem; }
-            h1 { font-size: 1.5rem; margin-bottom: 1rem; }
-            table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-            th, td { border: 1px solid #222; padding: 0.5rem; text-align: left; font-size: 0.9rem; }
-            .field { margin-bottom: 0.5rem; }
-            .field-label { font-weight: 600; }
+            @page {
+              size: A4;
+              margin: 0.5in;
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: Arial, sans-serif;
+              background: #fff;
+              color: #000;
+              padding: 15px;
+              font-size: 10pt;
+              line-height: 1.3;
+            }
+            .form-container {
+              max-width: 800px;
+              margin: 0 auto;
+              border: 2px solid #000;
+              padding: 0;
+            }
+            .header {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              border-bottom: 2px solid #000;
+              padding: 20px 20px;
+            }
+            .logo {
+              width: 400px;
+              height: auto;
+              margin-top: -40px;
+              margin-right: 80px;
+            }
+            .header-text {
+              margin-top: -35px;
+              flex: 1;
+              text-align: center;
+            }
+            .company-name {
+              font-size: 16pt;
+              font-weight: bold;
+              margin-bottom: 5px;
+            }
+            .form-title {
+              font-size: 14pt;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .section {
+              padding: 10px 15px;
+              border-bottom: 1px solid #000;
+            }
+            .section:last-child {
+              border-bottom: none;
+            }
+            .section-title {
+              font-weight: bold;
+              font-size: 10pt;
+              margin-bottom: 8px;
+              text-transform: uppercase;
+              background: #f0f0f0;
+              padding: 3px 8px;
+              margin: -10px -15px 8px -15px;
+            }
+            .field-row {
+              display: flex;
+              margin-bottom: 7px;
+              align-items: flex-start;
+            }
+            .field-row:last-child {
+              margin-bottom: 0;
+            }
+            .field-group {
+              flex: 1;
+              display: flex;
+              align-items: baseline;
+            }
+            .field-label {
+              font-weight: bold;
+              min-width: 130px;
+              font-size: 9pt;
+            }
+            .field-value {
+              flex: 1;
+              border-bottom: 1px solid #000;
+              min-height: 15px;
+              padding: 1px 3px;
+              font-size: 9pt;
+            }
+            .field-value.short-date {
+              width: 120px;
+              display: inline-block;
+            }
+            .periods-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+            }
+            .periods-table th {
+              background: #e0e0e0;
+              border: 1px solid #000;
+              padding: 5px 3px;
+              font-size: 9pt;
+              font-weight: bold;
+              text-align: center;
+            }
+            .periods-table td.period-cell {
+              border: 1px solid #000;
+              padding: 5px 3px;
+              height: 20px;
+              text-align: center;
+              font-size: 9pt;
+            }
+            .explanation-box {
+              border: 1px solid #000;
+              min-height: 50px;
+              padding: 6px;
+              margin-top: 5px;
+              font-size: 9pt;
+              line-height: 1.3;
+            }
+            .signature-section {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 8px;
+            }
+
+            .signature-block {
+              width: 45%;
+              text-align: center;
+            }
+            .signature-block1 {
+              margin-top: 60px;
+              width: 45%;
+              text-align: center;
+            }
+            .signature-line {
+              border-bottom: 1px solid #000;
+              height: 30px;
+              margin-bottom: 3px;
+              position: relative;
+            }
+            .signature-image {
+              width: 100%;
+              height: 60px;
+              background: #fff;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin-bottom: 0px;
+              padding-top: 5px;
+            }
+            .signature-image img {
+              max-width: 100%;
+              max-height: 100%;
+              display: block;
+            }
+            .signature-label {
+              font-size: 8pt;
+              font-weight: bold;
+            }
+            .date-line {
+              margin-top: 10px;
+            }
+            .date-label {
+              font-size: 9pt;
+            }
+            .approval-section {
+              margin-top: 8px;
+              padding-top: 8px;
+              border-top: 1px dashed #000;
+            }
+            .approval-title {
+              font-weight: bold;
+              font-size: 10pt;
+              margin-bottom: 8px;
+              text-align: center;
+              text-transform: uppercase;
+            }
+            .approval-signatures {
+              display: flex;
+              justify-content: space-around;
+            }
+            .approval-block {
+              width: 40%;
+              text-align: center;
+            }
+            .approval-note {
+              font-weight: bold;
+              margin-bottom: 5px;
+              font-size: 9pt;
+            }
+            .total-hours {
+              font-weight: bold;
+              background: #f5f5f5;
+              padding: 5px 10px;
+              display: inline-block;
+              border: 1px solid #000;
+              margin-top: 5px;
+            }
+            @media print {
+              body {
+                padding: 0;
+              }
+              .form-container {
+                border: 2px solid #000;
+              }
+            }
           </style>
         </head>
         <body>
-          <h1>Overtime Request</h1>
-          <div class="field"><span class="field-label">Employee Name:</span> ${escapeHtml(req.employee_name || req.full_name || '-')}</div>
-          <div class="field"><span class="field-label">Job Position:</span> ${escapeHtml(req.job_position || '-')}</div>
-          <div class="field"><span class="field-label">Department:</span> ${escapeHtml(req.department || '-')}</div>
-          <div class="field"><span class="field-label">Date Completed:</span> ${escapeHtml(req.date_completed || '-')}</div>
-          <div class="field"><span class="field-label">Anticipated Hours:</span> ${escapeHtml(req.anticipated_hours || '-')}</div>
-          <div class="field"><span class="field-label">Explanation:</span> ${escapeHtml(req.explanation || '-')}</div>
-          <div class="field"><span class="field-label">Approval Date:</span> ${escapeHtml(req.approval_date || '-')}</div>
-          <h2>Periods</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Start Date</th>
-                <th>Start Time</th>
-                <th>End Date</th>
-                <th>End Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${periods.length ? periodRows : '<tr><td colspan="5" style="text-align:center;">No periods provided.</td></tr>'}
-            </tbody>
-          </table>
+          <div class="form-container">
+            <!-- Header with Logo -->
+            <div class="header">
+              <img src="/imgs/formlogo.png" alt="Company Logo" class="logo" />
+              <div class="header-text">
+                <div class="form-title">Overtime Request Form</div>
+              </div>
+            </div>
+
+            <!-- Employee Information Section -->
+            <div class="section">
+              <div class="section-title">Employee Information</div>
+              <div class="field-row">
+                <div class="field-group">
+                  <span class="field-label">Employee Name:</span>
+                  <span class="field-value">${escapeHtml(req.employee_name || req.full_name || '')}</span>
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field-group" style="flex: 1; margin-right: 20px;">
+                  <span class="field-label">Job Position:</span>
+                  <span class="field-value">${escapeHtml(req.job_position || '')}</span>
+                </div>
+                <div class="field-group" style="flex: 1;">
+                  <span class="field-label">Department:</span>
+                  <span class="field-value">${escapeHtml(req.department || '')}</span>
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field-group">
+                  <span class="field-label">Date of Request:</span>
+                  <span class="field-value">${escapeHtml(req.date_completed || '')}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overtime Details Section -->
+            <div class="section">
+              <div class="section-title">Overtime Schedule</div>
+              <table class="periods-table">
+                <thead>
+                  <tr>
+                    <th style="width: 25%;">Start Date</th>
+                    <th style="width: 25%;">Start Time</th>
+                    <th style="width: 25%;">End Date</th>
+                    <th style="width: 25%;">End Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${periodRows.join('')}
+                </tbody>
+              </table>
+              <div style="margin-top: 15px; text-align: right;">
+                <span class="total-hours">Total Anticipated Hours: ${escapeHtml(req.anticipated_hours || '0')} hours</span>
+              </div>
+            </div>
+
+            <!-- Explanation Section -->
+            <div class="section">
+              <div class="section-title">Reason / Justification for Overtime</div>
+              <div class="explanation-box">
+                ${escapeHtml(req.explanation || '')}
+              </div>
+            </div>
+
+            <!-- Employee Signature Section -->
+            <div class="section">
+              <div class="section-title">Employee Acknowledgment</div>
+              <div class="signature-section">
+                <div class="signature-block">
+                  ${req.employee_signature ? `<div class="signature-image"><img src="${req.employee_signature}" alt="Employee Signature" /></div>` : ''}
+                  <div class="signature-line"></div>
+                  <div class="signature-label">Employee Signature</div>
+                </div>
+                <div class="signature-block1">
+                  <div class="signature-line">${escapeHtml(req.date_completed || '')}</div>
+                  <div class="signature-label">Date</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Approval Section -->
+            <div class="section">
+              <div class="approval-title">For Official Use Only - Approval</div>
+              <div class="field-row" style="margin-bottom: 15px;">
+                <div class="field-group">
+                  <span class="field-label">Approval Date:</span>
+                  <span class="field-value short-date">${escapeHtml(req.approval_date || '')}</span>
+                  <div class="approval-note">Approved</div>
+                </div>
+              </div>
+              <div class="approval-signatures">
+                <div class="approval-block">
+                  <div class="signature-line" style="margin-top: 15px;"></div>
+                  <div class="signature-label">Supervisor Signature</div>
+                </div>
+                <div class="approval-block">
+                  <div class="signature-line" style="margin-top: 15px;"></div>
+                  <div class="signature-label">Management Signature</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
         </body>
       </html>
     `;
     doc.document.write(html);
     doc.document.close();
-    doc.focus();
-    doc.print();
   };
 
   return (
@@ -203,7 +499,7 @@ function OvertimeRequests({ token }) {
                           fontWeight: '600'
                         }}
                       >
-                        Print Report
+                        Print Form
                       </button>
                     </td>
                   </tr>
