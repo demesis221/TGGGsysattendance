@@ -915,14 +915,29 @@ app.put('/api/admin/checkout/:attendanceId', auth, async (req, res) => {
 
 app.post('/api/reset-password', async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
+    const { email, code, newPassword } = req.body;
     
-    if (!email || !newPassword) {
-      return res.status(400).json({ error: 'Email and new password are required' });
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: 'Email, code, and new password are required' });
     }
 
     if (newPassword.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+    
+    // Verify code first
+    const { data: codes, error: codeError } = await supabaseAdmin
+      .from('password_reset_codes')
+      .select('*')
+      .eq('email', email)
+      .eq('code', code)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    if (codeError || !codes || codes.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
     }
     
     // Get user by email
@@ -943,6 +958,12 @@ app.post('/api/reset-password', async (req, res) => {
       console.error('Password update error:', updateError);
       return res.status(500).json({ error: 'Failed to update password' });
     }
+    
+    // Mark code as used
+    await supabaseAdmin
+      .from('password_reset_codes')
+      .update({ used: true })
+      .eq('id', codes[0].id);
     
     // Send confirmation email
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -986,31 +1007,86 @@ app.post('/api/forgot-password', async (req, res) => {
     
     if (!user) {
       // Don't reveal if email exists or not for security
-      return res.json({ message: 'If the email exists, a reset link will be sent.' });
+      return res.json({ message: 'If the email exists, a verification code will be sent.' });
     }
     
-    // Generate password reset link
-    const { data, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email
-    });
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     
-    if (resetError) {
-      console.error('Password reset error:', resetError);
-      return res.status(500).json({ error: 'Failed to generate reset link' });
+    // Store verification code in database (you'll need to create this table)
+    const { error: insertError } = await supabaseAdmin
+      .from('password_reset_codes')
+      .insert({
+        email: email,
+        code: verificationCode,
+        expires_at: expiresAt.toISOString(),
+        used: false
+      });
+    
+    if (insertError) {
+      console.error('Failed to store verification code:', insertError);
+      return res.status(500).json({ error: 'Failed to generate verification code' });
     }
     
-    // In production, send this link via email
-    // For now, log it (you can integrate with email service later)
-    console.log('Password reset link:', data.properties.action_link);
+    // Send verification code via email
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        await transporter.sendMail({
+          from: `"Triple G BuildHub" <${process.env.SMTP_USER}>`,
+          to: email,
+          subject: 'Password Reset Verification Code',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h2 style="color: #FF7120;">Password Reset Request</h2>
+              <p>You requested to reset your password. Use the verification code below:</p>
+              <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+                <h1 style="color: #FF7120; font-size: 32px; letter-spacing: 5px; margin: 0;">${verificationCode}</h1>
+              </div>
+              <p>This code will expire in 10 minutes.</p>
+              <p style="color: #666; font-size: 14px;">If you didn't request this, please ignore this email.</p>
+            </div>
+          `
+        });
+      } catch (emailError) {
+        console.error('Email send error:', emailError);
+        return res.status(500).json({ error: 'Failed to send verification code' });
+      }
+    }
     
-    res.json({ 
-      message: 'Password reset link generated',
-      // Remove this in production - only for development
-      resetLink: data.properties.action_link 
-    });
+    res.json({ success: true, message: 'Verification code sent to your email' });
   } catch (err) {
     console.error('Forgot password exception:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/verify-reset-code', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    
+    if (!email || !code) {
+      return res.status(400).json({ error: 'Email and code are required' });
+    }
+    
+    // Find valid code
+    const { data: codes, error } = await supabaseAdmin
+      .from('password_reset_codes')
+      .select('*')
+      .eq('email', email)
+      .eq('code', code)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    if (error || !codes || codes.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
+    
+    res.json({ success: true, message: 'Code verified successfully' });
+  } catch (err) {
+    console.error('Verify code exception:', err);
     res.status(500).json({ error: err.message });
   }
 });

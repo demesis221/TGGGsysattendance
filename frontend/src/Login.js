@@ -3,6 +3,7 @@ import axios from 'axios';
 import supabase from './supabaseClient';
 import Lottie from 'lottie-react';
 import cityBuildingAnimation from './cityBuilding.json';
+import PasswordStrength from './components/PasswordStrength';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -281,6 +282,8 @@ function Login({ onLogin }) {
                   </svg>
                 </button>
               </div>
+
+              {isSignup && <PasswordStrength password={formData.password} />}
 
               {!isSignup && (
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-5 gap-2 md:gap-0">
