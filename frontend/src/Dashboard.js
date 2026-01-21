@@ -24,6 +24,7 @@ function Dashboard({ token, user, onLogout }) {
   const itemsPerPage = 10;
   const [filterSession, setFilterSession] = useState('all');
   const [filterDate, setFilterDate] = useState('');
+  const [approvedOvertimes, setApprovedOvertimes] = useState([]);
   
   // Get current date/time in Philippines timezone (UTC+8)
   const getPhilippinesDate = () => {
@@ -57,12 +58,24 @@ function Dashboard({ token, user, onLogout }) {
     const minutes = phTime.getHours() * 60 + phTime.getMinutes();
     const inMorning = minutes >= 5 * 60 && minutes < 12 * 60;
     const inAfternoon = minutes >= (12 * 60 + 40) && minutes < 17 * 60;
-    const inOvertime = minutes >= 19 * 60 && minutes < 22 * 60;
+    
+    // Check if user has approved overtime for today
+    const hasApprovedOTToday = approvedOvertimes.some(ot => ot.date === today && ot.status === 'approved');
+    const inOvertime = hasApprovedOTToday && minutes >= (18 * 60 + 50) && minutes < 22 * 60; // 6:50 PM - 10 PM
     
     if (todaysOpen) return false;
-    if (todaysEntries.length >= 2) return false;
     
-    return inMorning || inAfternoon || inOvertime;
+    // Count sessions for today
+    const morningSession = todaysEntries.find(e => e.session === 'Morning');
+    const afternoonSession = todaysEntries.find(e => e.session === 'Afternoon');
+    const overtimeSession = todaysEntries.find(e => e.session === 'Overtime');
+    
+    // Allow check-in if current period is available and not yet checked in for that session
+    if (inMorning && !morningSession) return true;
+    if (inAfternoon && !afternoonSession) return true;
+    if (inOvertime && !overtimeSession) return true;
+    
+    return false;
   };
 
   const parseMinutes = (timeStr) => {
@@ -91,11 +104,20 @@ function Dashboard({ token, user, onLogout }) {
     const nowMinutes = phTime.getHours() * 60 + phTime.getMinutes();
     const startMinutes = parseMinutes(entry.time_in);
     if (startMinutes === null) return false;
+    
+    // Determine session type
     const isMorning = startMinutes < 12 * 60;
+    const isAfternoon = startMinutes >= 12 * 60 && startMinutes < 18 * 60;
+    const isOvertime = startMinutes >= 18 * 60;
+    
     if (isMorning) {
-      return nowMinutes >= 12 * 60;
+      return nowMinutes >= 12 * 60; // Can checkout at 12 PM
+    } else if (isAfternoon) {
+      return nowMinutes >= 17 * 60; // Can checkout at 5 PM
+    } else if (isOvertime) {
+      return nowMinutes >= 22 * 60; // Can checkout at 10 PM
     }
-    return nowMinutes >= 17 * 60;
+    return false;
   };
 
   const showAlert = (type, title, message) => {
@@ -164,6 +186,8 @@ function Dashboard({ token, user, onLogout }) {
       const promises = [fetchAttendance(), fetchUserProfile()];
       if (user.role === 'coordinator') {
         promises.push(fetchInterns());
+      } else {
+        promises.push(fetchApprovedOvertimes());
       }
       await Promise.all(promises);
       setLoading(false);
@@ -192,7 +216,14 @@ function Dashboard({ token, user, onLogout }) {
       if (!entry.time_in) return { ...entry, session: '-' };
       const [h] = entry.time_in.split(':');
       const hourNum = parseInt(h, 10);
-      const session = hourNum < 12 ? 'Morning' : 'Afternoon';
+      let session = '-';
+      if (hourNum < 12) {
+        session = 'Morning';
+      } else if (hourNum >= 12 && hourNum < 18) {
+        session = 'Afternoon';
+      } else if (hourNum >= 18) {
+        session = 'Overtime';
+      }
       return { ...entry, session };
     });
     setAttendance(withSession);
@@ -207,6 +238,19 @@ function Dashboard({ token, user, onLogout }) {
       setInterns(data);
     } catch (err) {
       console.error('Failed to fetch interns:', err);
+    }
+  };
+
+  const fetchApprovedOvertimes = async () => {
+    try {
+      const { data } = await axios.get(`${API}/overtime/my-approved`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setApprovedOvertimes(data);
+      console.log('Approved overtimes:', data);
+    } catch (err) {
+      console.error('Failed to fetch approved overtimes:', err);
+      setApprovedOvertimes([]);
     }
   };
 
@@ -463,7 +507,7 @@ function Dashboard({ token, user, onLogout }) {
                   </button>
                   {!canCheckInNow() && (
                     <div style={{ color: '#a0a4a8', fontSize: '0.9rem' }}>
-                      Time In available 5AM-12PM (counted 8AM-12PM), 12:40PM-5PM, and 7PM-10PM (overtime).
+                      Time In available 5AM-12PM (counted 8AM-12PM), 12:40PM-5PM, and 6:50PM-10PM (approved overtime only).
                     </div>
                   )}
                 </div>
@@ -555,7 +599,11 @@ function Dashboard({ token, user, onLogout }) {
                     {todaysOpen
                       ? canCheckOutNow(todaysOpen)
                         ? 'You can check out now'
-                        : 'Time Out available 12PM-5PM (morning) and after 5PM (afternoon)'
+                        : todaysOpen.session === 'Overtime'
+                          ? 'Time Out available at 10PM for overtime session'
+                          : todaysOpen.session === 'Morning'
+                            ? 'Time Out available at 12PM for morning session'
+                            : 'Time Out available at 5PM for afternoon session'
                       : 'Check in first to document your work'}
               </p>
               <div style={{ display: 'flex', gap: '20px', marginTop: '1rem', flexWrap: 'wrap' }}>
@@ -633,6 +681,7 @@ function Dashboard({ token, user, onLogout }) {
                 <option value="all">All Sessions</option>
                 <option value="Morning">Morning</option>
                 <option value="Afternoon">Afternoon</option>
+                <option value="Overtime">Overtime</option>
               </select>
               <input
                 type="date"
@@ -685,8 +734,6 @@ function Dashboard({ token, user, onLogout }) {
                 <th>Time Out</th>
                 <th>Status</th>
                 <th>Deduction</th>
-                <th>OT In</th>
-                <th>OT Out</th>
                 <th>Work Done</th>
                 <th>Attachments</th>
                 <th>Photo</th>
@@ -715,8 +762,6 @@ function Dashboard({ token, user, onLogout }) {
                       <span style={{color: '#ff9d5c', fontWeight: '600'}}>-{a.late_deduction_hours}hr</span>
                     ) : '-'}
                   </td>
-                  <td>{formatTime(a.ot_time_in)}</td>
-                  <td>{formatTime(a.ot_time_out)}</td>
                   <td>
                     {a.work_documentation ? (
                       <div>

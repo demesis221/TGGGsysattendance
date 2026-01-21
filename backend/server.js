@@ -201,12 +201,18 @@ app.post('/api/attendance/checkin', auth, upload.single('photo'), async (req, re
 
     // Morning window baseline: 08:05, late <=09:00 deduct 1hr, >=09:00 deduct 2hr
     // Afternoon window baseline: 13:00, late >5min (13:05) deduct 1hr
+    // Overtime window baseline: 19:05 (7:05 PM), late after 19:05 deduct 1hr
     const morningBaseline = 8 * 60 + 5;
     const morningLate = 9 * 60;
     const afternoonBaseline = 13 * 60; // 1:00 PM
     const afternoonLateThreshold = 13 * 60 + 5; // 1:05 PM
+    const overtimeBaseline = 19 * 60; // 7:00 PM
+    const overtimeLateThreshold = 19 * 60 + 5; // 7:05 PM
 
     const isMorning = minutesSinceMidnight < 12 * 60;
+    const isAfternoon = minutesSinceMidnight >= 12 * 60 && minutesSinceMidnight < 18 * 60;
+    const isOvertime = minutesSinceMidnight >= 18 * 60;
+    
     let lateDeduction = 0;
     let lateMinutes = 0;
     let status = 'On-Time';
@@ -217,10 +223,17 @@ app.post('/api/attendance/checkin', auth, upload.single('photo'), async (req, re
         status = 'Late';
         lateDeduction = minutesSinceMidnight >= morningLate ? 2 : 1;
       }
-    } else {
+    } else if (isAfternoon) {
       // Afternoon: late if after 1:05 PM, deduct 1 hour
       if (minutesSinceMidnight > afternoonLateThreshold) {
         lateMinutes = minutesSinceMidnight - afternoonBaseline;
+        status = 'Late';
+        lateDeduction = 1;
+      }
+    } else if (isOvertime) {
+      // Overtime: late if after 7:05 PM, deduct 1 hour
+      if (minutesSinceMidnight > overtimeLateThreshold) {
+        lateMinutes = minutesSinceMidnight - overtimeBaseline;
         status = 'Late';
         lateDeduction = 1;
       }
@@ -711,6 +724,32 @@ app.get('/api/overtime/my', auth, async (req, res) => {
   } catch (err) {
     console.error('Overtime fetch exception:', err);
     res.status(500).json({ error: 'Failed to load overtime requests.' });
+  }
+});
+
+app.get('/api/overtime/my-approved', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('overtime_requests')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .not('supervisor_signature', 'is', null)
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Approved overtime fetch error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const approvedOTs = data.map(ot => ({
+      ...ot,
+      status: 'approved'
+    }));
+
+    res.json(approvedOTs);
+  } catch (err) {
+    console.error('Approved overtime fetch exception:', err);
+    res.status(500).json({ error: 'Failed to load approved overtime requests.' });
   }
 });
 

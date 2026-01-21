@@ -292,7 +292,27 @@ function App() {
               Todo
             </button>
           )}
-          {user.role === 'intern' && (
+          
+          {user.role === 'coordinator' && (
+            <button 
+              onClick={() => changePage('reports')}
+              style={{
+                background: currentPage === 'reports' ? '#FF7120' : 'transparent',
+                color: currentPage === 'reports' ? 'white' : '#FF7120',
+                border: '1px solid rgba(255, 113, 32, 0.3)',
+                padding: '0.4rem 0.75rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Reports
+            </button>
+          )}
+
+          {(user.role === 'intern' || user.role === 'coordinator') && (
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowNotifMenu(prev => !prev)}
@@ -392,24 +412,7 @@ function App() {
               )}
             </div>
           )}
-          {user.role === 'coordinator' && (
-            <button 
-              onClick={() => changePage('reports')}
-              style={{
-                background: currentPage === 'reports' ? '#FF7120' : 'transparent',
-                color: currentPage === 'reports' ? 'white' : '#FF7120',
-                border: '1px solid rgba(255, 113, 32, 0.3)',
-                padding: '0.4rem 0.75rem',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.85rem',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Reports
-            </button>
-          )}
+          
           <button 
             onClick={() => changePage('profile')}
             style={{

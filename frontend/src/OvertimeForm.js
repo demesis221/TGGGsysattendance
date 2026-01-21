@@ -139,6 +139,22 @@ function OvertimeForm({ token }) {
     if (!hasAnyPeriod) {
       return 'Add at least one overtime period.';
     }
+
+    // Check for duplicate periods (same start_date and end_date)
+    const seenPeriodDates = new Set();
+    for (let index = 0; index < periods.length; index += 1) {
+      const period = periods[index];
+      const hasEntry = period.start_date || period.end_date || period.start_time || period.end_time;
+      if (!hasEntry) {
+        continue;
+      }
+      const periodKey = `${period.start_date}|${period.end_date}`;
+      if (seenPeriodDates.has(periodKey)) {
+        return `Duplicate period found: Period ${index + 1} has the same start and end date as another period. Each period must have unique dates.`;
+      }
+      seenPeriodDates.add(periodKey);
+    }
+
     for (let index = 0; index < periods.length; index += 1) {
       const period = periods[index];
       const hasEntry = period.start_date || period.end_date || period.start_time || period.end_time;
@@ -148,6 +164,7 @@ function OvertimeForm({ token }) {
       if (!period.start_date || !period.end_date || !period.start_time || !period.end_time) {
         return `Period ${index + 1} is incomplete. Please fill all date and time fields.`;
       }
+
       const start = new Date(`${period.start_date}T${period.start_time}`);
       const end = new Date(`${period.end_date}T${period.end_time}`);
       if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
@@ -188,37 +205,46 @@ function OvertimeForm({ token }) {
     }
     setSaving(true);
     try {
-      let signatureUrl = form.employee_signature;
+      let signatureUrl = '';
 
-      // Upload signature to Supabase bucket if it's a data URL
+      // Upload signature to public Supabase bucket and get a public URL
       if (form.employee_signature && form.employee_signature.startsWith('data:')) {
         try {
           const canvas = sigCanvasRef.current;
           const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
           const timestamp = Date.now();
           const fileName = `signature_${timestamp}_${form.employee_name.replace(/\s+/g, '_')}.png`;
-          
-          const { data, error } = await supabase.storage
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
             .from('signature')
             .upload(fileName, blob, {
               cacheControl: '3600',
               upsert: false
             });
 
-          if (error) {
-            console.error('Signature upload error:', error);
-            setAlert({ type: 'error', title: 'Upload warning', message: 'Signature uploaded locally but bucket save failed. Proceeding with submission.' });
-          } else {
-            // Get public URL
-            const { data: publicData } = supabase.storage
-              .from('signature')
-              .getPublicUrl(data.path);
-            signatureUrl = publicData.publicUrl;
+          if (uploadError) {
+            throw new Error(`Signature upload failed: ${uploadError.message}`);
           }
+
+          const { data: publicData, error: publicError } = supabase.storage
+            .from('signature')
+            .getPublicUrl(uploadData.path);
+
+          if (publicError || !publicData?.publicUrl) {
+            throw new Error(publicError?.message || 'Could not get public URL for signature.');
+          }
+
+          signatureUrl = publicData.publicUrl;
         } catch (uploadErr) {
           console.error('Signature upload failed:', uploadErr);
-          // Continue with data URL if bucket upload fails
+          setAlert({ type: 'error', title: 'Signature Upload Failed', message: 'Failed to upload signature. Please try again.' });
+          setSaving(false);
+          return;
         }
+      } else {
+        setAlert({ type: 'error', title: 'No Signature', message: 'Please sign the form before submitting.' });
+        setSaving(false);
+        return;
       }
 
       const payload = {
@@ -339,6 +365,8 @@ function OvertimeForm({ token }) {
               <input
                 type="date"
                 value={form.date_completed}
+                min={getTodayDate()}
+                max={getTodayDate()}
                 onChange={(e) => updateFormField('date_completed', e.target.value)}
                 required
               />
@@ -351,10 +379,10 @@ function OvertimeForm({ token }) {
                 required
               >
                 <option value="">Select department</option>
-                <option value="IT Department">IT Department</option>
-                <option value="HR Department">HR Department</option>
-                <option value="Architecture Department">Architects Department</option>
+                <option value="OJT Department">OJT Department</option>
+                <option value="Design Department">DesignDepartment</option>
                 <option value="Engineering Department">Engineering Department</option>
+                <option value="Accounting Department">Accounting Department</option>
               </select>
             </div>
           </div>
@@ -393,7 +421,11 @@ function OvertimeForm({ token }) {
                       <input
                         type="date"
                         value={p.start_date}
-                        onChange={(e) => updatePeriod(idx, 'start_date', e.target.value)}
+                        min={getTodayDate()}
+                        onChange={(e) => {
+                          updatePeriod(idx, 'start_date', e.target.value);
+                          updatePeriod(idx, 'end_date', e.target.value);
+                        }}
                         style={{
                           width: '100%',
                           padding: '0.75rem',
@@ -410,6 +442,7 @@ function OvertimeForm({ token }) {
                       <input
                         type="date"
                         value={p.end_date}
+                        min={p.start_date || getTodayDate()}
                         onChange={(e) => updatePeriod(idx, 'end_date', e.target.value)}
                         style={{
                           width: '100%',

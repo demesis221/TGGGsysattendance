@@ -64,6 +64,8 @@ function OvertimeRequests({ token }) {
     return 'Pending';
   };
 
+  const isSelectedApproved = selected ? statusLabel(selected) === 'Approved' : false;
+
   const submitApproval = async () => {
     if (!selected) return;
     try {
@@ -95,8 +97,8 @@ function OvertimeRequests({ token }) {
       periodRows.push(`
         <tr>
           <td class="period-cell">${period ? escapeHtml(period.start_date || '') : ''}</td>
-          <td class="period-cell">${period ? escapeHtml(period.start_time || '') : ''}</td>
           <td class="period-cell">${period ? escapeHtml(period.end_date || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(period.start_time || '') : ''}</td>
           <td class="period-cell">${period ? escapeHtml(period.end_time || '') : ''}</td>
         </tr>
       `);
@@ -480,6 +482,8 @@ function OvertimeRequests({ token }) {
               type="date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
+              min="2000-01-01"
+              max="2026-12-31"
               className="px-4 py-2 bg-blue-950 text-gray-300 border border-orange-500/30 rounded-lg text-sm cursor-pointer hover:border-orange-500/50"
             />
             {(filterStatus !== 'all' || filterEmployee !== 'all' || filterDate) && (
@@ -554,97 +558,115 @@ function OvertimeRequests({ token }) {
       </div>
 
       {selected && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-blue-950 rounded-xl border border-orange-500/30 max-w-4xl w-full max-h-screen overflow-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white m-0">{selected.full_name || selected.employee_name}</h3>
+        <div style={{position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem'}}>
+          <div style={{background: '#00273C', borderRadius: '12px', border: '1px solid rgba(255, 113, 32, 0.2)', maxWidth: '900px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '1.5rem'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+              <h3 style={{color: '#e8eaed', margin: 0, fontSize: '1.1rem', fontWeight: '600'}}>{selected.full_name || selected.employee_name}</h3>
               <button
                 onClick={() => setSelected(null)}
-                className="bg-transparent border-none text-orange-500 text-2xl cursor-pointer hover:text-orange-600"
+                style={{background: 'transparent', border: 'none', color: '#FF7120', fontSize: '2rem', cursor: 'pointer', padding: 0, lineHeight: 1}}
               >×</button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div style={{display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem'}}>
               <div>
-                <label className="text-gray-500 text-sm">Employee Name</label>
-                <div className="text-white">{selected.full_name || selected.employee_name || '-'}</div>
+                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Employee Name</label>
+                <div style={{color: '#e8eaed'}}>{selected.full_name || selected.employee_name || '-'}</div>
               </div>
               <div>
-                <label className="text-gray-500 text-sm">Job Position</label>
-                <div className="text-white">{selected.job_position || '-'}</div>
+                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Job Position</label>
+                <div style={{color: '#e8eaed'}}>{selected.job_position || '-'}</div>
               </div>
               <div>
-                <label className="text-gray-500 text-sm">Department</label>
-                <div className="text-white">{selected.department || '-'}</div>
+                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Department</label>
+                <div style={{color: '#e8eaed'}}>{selected.department || '-'}</div>
               </div>
               <div>
-                <label className="text-gray-500 text-sm">Date Completed</label>
-                <div className="text-white">{selected.date_completed || '-'}</div>
+                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Date Completed</label>
+                <div style={{color: '#e8eaed'}}>{selected.date_completed || '-'}</div>
               </div>
               <div>
-                <label className="text-gray-500 text-sm">Anticipated Hours</label>
-                <div className="text-white">{selected.anticipated_hours || '-'}</div>
+                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Anticipated Hours</label>
+                <div style={{color: '#e8eaed'}}>{selected.anticipated_hours || '-'}</div>
               </div>
               <div>
-                <label className="text-gray-500 text-sm">Approval Date</label>
-                <div className="text-white">{selected.approval_date || '-'}</div>
+                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Approval Date</label>
+                <div style={{color: '#e8eaed'}}>{selected.approval_date || '-'}</div>
               </div>
             </div>
-            <div className="mb-4">
-              <label className="text-gray-500 text-sm">Explanation</label>
-              <div className="text-white bg-blue-900 p-3 rounded-lg border border-white/10">
+            <div style={{marginBottom: '1rem'}}>
+              <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem'}}>Explanation</label>
+              <div style={{color: '#e8eaed', background: '#001a2b', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)'}}>
                 {selected.explanation || '-'}
               </div>
             </div>
-            <div className="mb-4">
-              <label className="text-gray-500 text-sm">Overtime Periods</label>
-              <div className="bg-blue-950 border border-white/10 rounded-lg p-3">
+            <div style={{marginBottom: '1rem'}}>
+              <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem'}}>Overtime Periods</label>
+              <div style={{background: '#00273C', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '0.75rem'}}>
                 {Array.isArray(selected.periods) && selected.periods.length > 0 ? (
-                  <table className="w-full border-collapse text-xs">
+                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem'}}>
                     <thead>
                       <tr>
-                        <th className="text-left p-1 border-b border-white/10">#</th>
-                        <th className="text-left p-1 border-b border-white/10">Start Date</th>
-                        <th className="text-left p-1 border-b border-white/10">Start Time</th>
-                        <th className="text-left p-1 border-b border-white/10">End Date</th>
-                        <th className="text-left p-1 border-b border-white/10">End Time</th>
+                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>#</th>
+                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>Start Date</th>
+                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>Start Time</th>
+                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>End Date</th>
+                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>End Time</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selected.periods.map((period, idx) => (
                         <tr key={`pv-${idx}`}>
-                          <td className="border-b border-white/10 p-1">{idx + 1}</td>
-                          <td className="border-b border-white/10 p-1">{period.start_date || '-'}</td>
-                          <td className="border-b border-white/10 p-1">{period.start_time || '-'}</td>
-                          <td className="border-b border-white/10 p-1">{period.end_date || '-'}</td>
-                          <td className="border-b border-white/10 p-1">{period.end_time || '-'}</td>
+                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{idx + 1}</td>
+                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.start_date || '-'}</td>
+                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.start_time || '-'}</td>
+                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.end_date || '-'}</td>
+                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.end_time || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 ) : (
-                  <div className="text-white">No periods recorded.</div>
+                  <div style={{color: '#e8eaed'}}>No periods recorded.</div>
                 )}
               </div>
             </div>
-            <div className="mb-4 max-w-sm">
-              <label className="text-gray-500 text-sm">Date of Approval</label>
+            <div style={{marginBottom: '1rem', maxWidth: '300px'}}>
+              <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem'}}>Date of Approval</label>
               <input
                 type="date"
                 value={approvalDate}
                 onChange={(e) => setApprovalDate(e.target.value)}
-                className="w-full px-3 py-2 bg-blue-900 text-gray-300 border border-white/10 rounded-lg text-sm"
+                min="2000-01-01"
+                max="2026-12-31"
+                style={{width: '100%', padding: '0.5rem', background: '#001a2b', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'inherit'}}
               />
             </div>
-            <div className="flex justify-end gap-3 mt-6">
+            <div style={{display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem'}}>
               <button
                 onClick={submitApproval}
-                className="bg-orange-500 text-white border-none rounded-lg px-6 py-2 font-bold cursor-pointer hover:bg-orange-600 transition-colors"
+                disabled={isSelectedApproved}
+                style={{
+                  background: isSelectedApproved ? 'rgba(255, 113, 32, 0.4)' : '#FF7120',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0.5rem 1.5rem',
+                  fontWeight: '600',
+                  cursor: isSelectedApproved ? 'not-allowed' : 'pointer',
+                  fontSize: '0.9rem',
+                  opacity: isSelectedApproved ? 0.7 : 1,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { if (!isSelectedApproved) e.target.style.background = '#ff8a3a'; }}
+                onMouseLeave={(e) => { if (!isSelectedApproved) e.target.style.background = '#FF7120'; }}
               >
-                Save Approval
+                {isSelectedApproved ? 'Already Approved' : 'Approve Request'}
               </button>
               <button
                 onClick={() => setSelected(null)}
-                className="bg-transparent text-gray-500 border border-white/20 rounded-lg px-6 py-2 cursor-pointer hover:text-gray-300 hover:border-white/40 transition-colors"
+                style={{background: 'transparent', color: '#a0a4a8', border: '1px solid rgba(255, 113, 32, 0.3)', borderRadius: '8px', padding: '0.5rem 1.5rem', cursor: 'pointer', fontSize: '0.9rem'}}
+                onMouseEnter={(e) => {e.target.style.color = '#FF7120'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.5)'}}
+                onMouseLeave={(e) => {e.target.style.color = '#a0a4a8'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.3)'}}
               >
                 Close
               </button>
