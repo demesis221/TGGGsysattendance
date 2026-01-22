@@ -100,7 +100,27 @@ function Dashboard({ token, user, onLogout }) {
     return h * 60 + m;
   };
 
-
+  const canCheckOutNow = (entry) => {
+    if (!entry || !entry.time_in) return false;
+    const phTime = toZonedTime(new Date(), 'Asia/Manila');
+    const nowMinutes = phTime.getHours() * 60 + phTime.getMinutes();
+    const startMinutes = parseMinutes(entry.time_in);
+    if (startMinutes === null) return false;
+    
+    // Determine session type
+    const isMorning = startMinutes < 12 * 60;
+    const isAfternoon = startMinutes >= 12 * 60 && startMinutes < 18 * 60;
+    const isOvertime = startMinutes >= 18 * 60;
+    
+    if (isMorning) {
+      return nowMinutes >= 12 * 60; // Can checkout at 12 PM
+    } else if (isAfternoon) {
+      return nowMinutes >= 17 * 60; // Can checkout at 5 PM
+    } else if (isOvertime) {
+      return nowMinutes >= 22 * 60; // Can checkout at 10 PM
+    }
+    return false;
+  };
 
   const showAlert = (type, title, message) => {
     setAlert({ type, title, message });
