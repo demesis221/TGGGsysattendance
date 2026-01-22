@@ -235,7 +235,72 @@ function Dashboard({ token, user, onLogout }) {
       }
       return { ...entry, session };
     });
-    setAttendance(withSession);
+    // Consolidate attendance by date for daily view
+    const consolidatedByDate = {};
+    withSession.forEach(entry => {
+      if (!consolidatedByDate[entry.date]) {
+        consolidatedByDate[entry.date] = {
+          date: entry.date,
+          user_id: entry.user_id,
+          full_name: entry.full_name,
+          morning_time_in: null,
+          morning_time_out: null,
+          morning_status: null,
+          morning_late_deduction: 0,
+          afternoon_time_in: null,
+          afternoon_time_out: null,
+          afternoon_status: null,
+          afternoon_late_deduction: 0,
+          ot_time_in: null,
+          ot_time_out: null,
+          ot_status: null,
+          ot_late_deduction: 0,
+          total_deduction: 0,
+          work_documentation: null,
+          attachments: [],
+          photo_path: null,
+          allSessions: []
+        };
+      }
+      
+      // Determine overall status (worst of all sessions)
+      let overallStatus = consolidatedByDate[entry.date].overall_status || 'On-Time';
+      if (entry.status === 'Late') overallStatus = 'Late';
+      
+      if (entry.session === 'Morning') {
+        consolidatedByDate[entry.date].morning_time_in = entry.time_in;
+        consolidatedByDate[entry.date].morning_time_out = entry.actual_time_out || entry.time_out;
+        consolidatedByDate[entry.date].morning_status = entry.status;
+        consolidatedByDate[entry.date].morning_late_deduction = entry.late_deduction_hours || 0;
+      } else if (entry.session === 'Afternoon') {
+        consolidatedByDate[entry.date].afternoon_time_in = entry.time_in;
+        consolidatedByDate[entry.date].afternoon_time_out = entry.actual_time_out || entry.time_out;
+        consolidatedByDate[entry.date].afternoon_status = entry.status;
+        consolidatedByDate[entry.date].afternoon_late_deduction = entry.late_deduction_hours || 0;
+      } else if (entry.session === 'Overtime') {
+        consolidatedByDate[entry.date].ot_time_in = entry.time_in;
+        consolidatedByDate[entry.date].ot_time_out = entry.actual_time_out || entry.time_out;
+        consolidatedByDate[entry.date].ot_status = entry.status;
+        consolidatedByDate[entry.date].ot_late_deduction = entry.late_deduction_hours || 0;
+      }
+      
+      consolidatedByDate[entry.date].overall_status = overallStatus;
+      consolidatedByDate[entry.date].total_deduction += (entry.late_deduction_hours || 0) + (entry.early_checkout_deduction || 0);
+      
+      if (entry.work_documentation) {
+        consolidatedByDate[entry.date].work_documentation = entry.work_documentation;
+      }
+      if (entry.attachments && Array.isArray(entry.attachments)) {
+        consolidatedByDate[entry.date].attachments = [...new Set([...consolidatedByDate[entry.date].attachments, ...entry.attachments])];
+      }
+      if (entry.photo_path) {
+        consolidatedByDate[entry.date].photo_path = entry.photo_path;
+      }
+      consolidatedByDate[entry.date].allSessions.push(entry);
+    });
+    
+    const consolidated = Object.values(consolidatedByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
+    setAttendance(consolidated);
   };
 
   const fetchInterns = async () => {
@@ -1084,24 +1149,7 @@ function Dashboard({ token, user, onLogout }) {
                   ))}
                 </select>
               )}
-              <select
-                value={filterSession}
-                onChange={(e) => setFilterSession(e.target.value)}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: '#00273C',
-                  color: '#e8eaed',
-                  border: '1px solid rgba(255, 113, 32, 0.3)',
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="all">All Sessions</option>
-                <option value="Morning">Morning</option>
-                <option value="Afternoon">Afternoon</option>
-                <option value="Overtime">Overtime</option>
-              </select>
+              {/* Session filter removed - now showing per-day consolidated view */}
               <input
                 type="date"
                 value={filterDate}
@@ -1116,10 +1164,9 @@ function Dashboard({ token, user, onLogout }) {
                   cursor: 'pointer'
                 }}
               />
-              {(filterSession !== 'all' || filterDate) && (
+              {(filterDate) && (
                 <button
                   onClick={() => {
-                    setFilterSession('all');
                     setFilterDate('');
                   }}
                   style={{
@@ -1148,9 +1195,12 @@ function Dashboard({ token, user, onLogout }) {
                     <tr>
                       {user.role === 'coordinator' && <th>Intern Name</th>}
                       <th>Date</th>
-                      <th>Session</th>
-                      <th>Time In</th>
-                      <th>Time Out</th>
+                      <th>Morning In</th>
+                      <th>Morning Out</th>
+                      <th>Afternoon In</th>
+                      <th>Afternoon Out</th>
+                      <th>OT In</th>
+                      <th>OT Out</th>
                       <th>Status</th>
                       <th>Deduction</th>
                       <th>Work Done</th>
@@ -1161,29 +1211,51 @@ function Dashboard({ token, user, onLogout }) {
                   <tbody>
                     {attendance
                       .filter(a => selectedIntern === 'all' || a.user_id === selectedIntern)
-                      .filter(a => filterSession === 'all' || a.session === filterSession)
                       .filter(a => !filterDate || a.date === filterDate)
                       .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                       .map((a) => (
-                        <tr key={a.id}>
+                        <tr key={a.date + (a.user_id || '')}>
                           {user.role === 'coordinator' && <td>{a.full_name}</td>}
                           <td>{a.date}</td>
-                          <td>{a.session || '-'}</td>
-                          <td>{formatTime(a.time_in)}</td>
-                          <td>{formatTime(a.actual_time_out || a.time_out)}</td>
+                          <td>{formatTime(a.morning_time_in) || '-'}</td>
+                          <td>{formatTime(a.morning_time_out) || '-'}</td>
+                          <td>{formatTime(a.afternoon_time_in) || '-'}</td>
+                          <td>{formatTime(a.afternoon_time_out) || '-'}</td>
+                          <td>{formatTime(a.ot_time_in) || '-'}</td>
+                          <td>{formatTime(a.ot_time_out) || '-'}</td>
                           <td>
-                            <span className={`status-badge ${a.status === 'On-Time' ? 'status-ontime' : 'status-late'}`}>
-                              {a.status || '-'}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {a.morning_time_in && (
+                                <span className={`status-badge ${a.morning_status === 'On-Time' ? 'status-ontime' : 'status-late'}`}>
+                                  {a.morning_status ? `Morning: ${a.morning_status}` : 'Morning: -'}
+                                </span>
+                              )}
+                              {a.afternoon_time_in && (
+                                <span className={`status-badge ${a.afternoon_status === 'On-Time' ? 'status-ontime' : 'status-late'}`}>
+                                  {a.afternoon_status ? `Afternoon: ${a.afternoon_status}` : 'Afternoon: -'}
+                                </span>
+                              )}
+                              {a.ot_time_in && (
+                                <span className={`status-badge ${a.ot_status === 'On-Time' ? 'status-ontime' : 'status-late'}`}>
+                                  {a.ot_status ? `OT: ${a.ot_status}` : 'OT: -'}
+                                </span>
+                              )}
+                              {!a.morning_time_in && !a.afternoon_time_in && !a.ot_time_in && (
+                                <span style={{ color: '#a0a4a8' }}>-</span>
+                              )}
+                            </div>
                           </td>
                           <td>
-                            {(a.late_deduction_hours > 0 || a.early_checkout_deduction > 0) ? (
+                            {a.total_deduction > 0 ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                {a.late_deduction_hours > 0 && (
-                                  <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>Late: -{a.late_deduction_hours}hr</span>
+                                {a.morning_late_deduction > 0 && (
+                                  <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>Morning: -{a.morning_late_deduction}hr</span>
                                 )}
-                                {a.early_checkout_deduction > 0 && (
-                                  <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>Early: -{a.early_checkout_deduction}hr</span>
+                                {a.afternoon_late_deduction > 0 && (
+                                  <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>Afternoon: -{a.afternoon_late_deduction}hr</span>
+                                )}
+                                {a.ot_late_deduction > 0 && (
+                                  <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>OT: -{a.ot_late_deduction}hr</span>
                                 )}
                               </div>
                             ) : '-'}
@@ -1279,18 +1351,18 @@ function Dashboard({ token, user, onLogout }) {
                     Previous
                   </button>
                   <span style={{ color: '#e8eaed', fontSize: '0.9rem' }}>
-                    Page {currentPage} of {Math.ceil(attendance.filter(a => selectedIntern === 'all' || a.user_id === selectedIntern).filter(a => filterSession === 'all' || a.session === filterSession).filter(a => !filterDate || a.date === filterDate).length / itemsPerPage) || 1}
+                    Page {currentPage} of {Math.ceil(attendance.filter(a => selectedIntern === 'all' || a.user_id === selectedIntern).filter(a => !filterDate || a.date === filterDate).length / itemsPerPage) || 1}
                   </span>
                   <button
                     onClick={() => setCurrentPage(p => p + 1)}
-                    disabled={currentPage >= Math.ceil(attendance.filter(a => selectedIntern === 'all' || a.user_id === selectedIntern).filter(a => filterSession === 'all' || a.session === filterSession).filter(a => !filterDate || a.date === filterDate).length / itemsPerPage)}
+                    disabled={currentPage >= Math.ceil(attendance.filter(a => selectedIntern === 'all' || a.user_id === selectedIntern).filter(a => !filterDate || a.date === filterDate).length / itemsPerPage)}
                     style={{
                       padding: '0.5rem 1rem',
-                      background: currentPage >= Math.ceil(attendance.filter(a => selectedIntern === 'all' || a.user_id === selectedIntern).filter(a => filterSession === 'all' || a.session === filterSession).filter(a => !filterDate || a.date === filterDate).length / itemsPerPage) ? 'rgba(255, 113, 32, 0.3)' : '#FF7120',
+                      background: currentPage >= Math.ceil(attendance.filter(a => selectedIntern === 'all' || a.user_id === selectedIntern).filter(a => !filterDate || a.date === filterDate).length / itemsPerPage) ? 'rgba(255, 113, 32, 0.3)' : '#FF7120',
                       color: 'white',
                       border: 'none',
                       borderRadius: '6px',
-                      cursor: currentPage >= Math.ceil(attendance.filter(a => selectedIntern === 'all' || a.user_id === selectedIntern).filter(a => filterSession === 'all' || a.session === filterSession).filter(a => !filterDate || a.date === filterDate).length / itemsPerPage) ? 'not-allowed' : 'pointer',
+                      cursor: currentPage >= Math.ceil(attendance.filter(a => selectedIntern === 'all' || a.user_id === selectedIntern).filter(a => !filterDate || a.date === filterDate).length / itemsPerPage) ? 'not-allowed' : 'pointer',
                       fontWeight: '600'
                     }}
                   >
