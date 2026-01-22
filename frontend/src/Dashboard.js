@@ -164,18 +164,14 @@ function Dashboard({ token, user, onLogout }) {
     if (startMinutes === null) return false;
     
     // Determine session type
-    const isMorning = startMinutes < 12 * 60;
-    const isAfternoon = startMinutes >= 12 * 60 && startMinutes < 18 * 60;
     const isOvertime = startMinutes >= 18 * 60;
     
-    if (isMorning) {
-      return nowMinutes >= 12 * 60; // Can checkout at 12 PM
-    } else if (isAfternoon) {
-      return nowMinutes >= 17 * 60; // Can checkout at 5 PM
-    } else if (isOvertime) {
+    // Morning and afternoon: can checkout anytime
+    // Overtime: must wait until 10 PM
+    if (isOvertime) {
       return nowMinutes >= 22 * 60; // Can checkout at 10 PM
     }
-    return false;
+    return true; // Morning and afternoon can checkout anytime
   };
 
   const showAlert = (type, title, message) => {
@@ -1131,7 +1127,7 @@ function Dashboard({ token, user, onLogout }) {
                     {todaysOpen
                       ? canCheckOutNow(todaysOpen)
                         ? 'You can check out now'
-                        : 'Time Out available 12PM-5PM (morning) and after 5PM (afternoon)'
+                        : 'Time Out available after 10PM for overtime sessions'
                       : 'Check in first to document your work'}
                   </p>
                   <div style={{ display: 'flex', gap: '20px', marginTop: '1rem', flexWrap: 'wrap' }}>
