@@ -29,7 +29,13 @@ function NotificationPanel({ notifications, onNotificationClick, onMarkAllRead }
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <div style={{ width: '450px', maxHeight: '600px', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ 
+      width: '100%',
+      maxWidth: '450px', 
+      maxHeight: '600px', 
+      display: 'flex', 
+      flexDirection: 'column'
+    }}>
       {/* Header */}
       <div style={{ 
         padding: '1rem', 
@@ -62,7 +68,8 @@ function NotificationPanel({ notifications, onNotificationClick, onMarkAllRead }
         display: 'flex', 
         gap: '0.5rem',
         padding: '0.75rem 1rem',
-        borderBottom: '1px solid rgba(255,113,32,0.1)'
+        borderBottom: '1px solid rgba(255,113,32,0.1)',
+        flexWrap: 'wrap'
       }}>
         {['all', 'unread', 'read'].map(tab => (
           <button
@@ -77,7 +84,9 @@ function NotificationPanel({ notifications, onNotificationClick, onMarkAllRead }
               cursor: 'pointer',
               fontSize: '0.85rem',
               transition: 'all 0.2s',
-              textTransform: 'capitalize'
+              textTransform: 'capitalize',
+              flex: '1 1 auto',
+              minWidth: 'fit-content'
             }}
           >
             {tab} {tab === 'unread' && unreadCount > 0 && `(${unreadCount})`}
@@ -129,7 +138,8 @@ function NotificationPanel({ notifications, onNotificationClick, onMarkAllRead }
       <div style={{ 
         flex: 1, 
         overflowY: 'auto',
-        maxHeight: '400px'
+        maxHeight: '400px',
+        minHeight: '200px'
       }}>
         {filteredNotifications.length === 0 ? (
           <div style={{ 

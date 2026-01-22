@@ -375,11 +375,13 @@ function App() {
                   <div className="header-dropdown-menu" style={{ 
                     position: window.innerWidth < 768 ? 'fixed' : 'absolute',
                     top: window.innerWidth < 768 ? '50%' : '110%',
-                    right: window.innerWidth < 768 ? 'auto' : '0',
-                    left: window.innerWidth < 768 ? '50%' : 'auto',
-                    transform: window.innerWidth < 768 ? 'translate(-50%, -50%)' : 'none',
+                    right: window.innerWidth < 768 ? '1rem' : '0',
+                    left: window.innerWidth < 768 ? '1rem' : 'auto',
+                    transform: window.innerWidth < 768 ? 'translateY(-50%)' : 'none',
                     zIndex: 1000,
-                    padding: 0
+                    padding: 0,
+                    width: window.innerWidth < 768 ? 'auto' : 'auto',
+                    maxWidth: window.innerWidth < 768 ? 'calc(100vw - 2rem)' : '450px'
                   }}>
                     <NotificationPanel 
                       notifications={notifications}
