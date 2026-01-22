@@ -745,7 +745,7 @@ function Dashboard({ token, user, onLogout }) {
                   <td>{a.date}</td>
                   <td>{a.session || '-'}</td>
                   <td>{formatTime(a.time_in)}</td>
-                  <td>{formatTime(a.time_out)}</td>
+                  <td>{formatTime(a.actual_time_out || a.time_out)}</td>
                   <td>
                     <span className={`status-badge ${a.status === 'On-Time' ? 'status-ontime' : 'status-late'}`}>
                       {a.status || '-'}
