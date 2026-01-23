@@ -4,3 +4,7 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 .env
 *.log
+
+# Amazon Q
+.amazonq/
+.aws/
