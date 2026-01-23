@@ -157,21 +157,9 @@ function Dashboard({ token, user, onLogout }) {
   };
 
   const canCheckOutNow = (entry) => {
-    if (!entry || !entry.time_in) return false;
-    const phTime = toZonedTime(new Date(), 'Asia/Manila');
-    const nowMinutes = phTime.getHours() * 60 + phTime.getMinutes();
-    const startMinutes = parseMinutes(entry.time_in);
-    if (startMinutes === null) return false;
-    
-    // Determine session type
-    const isOvertime = startMinutes >= 18 * 60;
-    
-    // Morning and afternoon: can checkout anytime
-    // Overtime: must wait until 10 PM
-    if (isOvertime) {
-      return nowMinutes >= 22 * 60; // Can checkout at 10 PM
-    }
-    return true; // Morning and afternoon can checkout anytime
+    if (!entry) return false;
+    // Allow checkout anytime after check-in for all sessions
+    return true;
   };
 
   const showAlert = (type, title, message) => {
@@ -509,6 +497,18 @@ function Dashboard({ token, user, onLogout }) {
   };
 
   const checkOut = async (id) => {
+    // For interns with consolidated data, find the actual open session ID
+    let sessionId = id;
+    if (!sessionId && todaysOpen?.allSessions) {
+      const openSession = todaysOpen.allSessions.find(s => !s.time_out);
+      sessionId = openSession?.id;
+    }
+    
+    if (!sessionId) {
+      showAlert('error', 'Error', 'No active session found.');
+      return;
+    }
+    
     // Find the session to determine if documentation is required
     const session = todaysOpen;
     const isMorning = session && parseMinutes(session.time_in) < 12 * 60;
@@ -533,7 +533,7 @@ function Dashboard({ token, user, onLogout }) {
         formData.append('attachments', file);
       });
 
-      await axios.put(`${API}/attendance/checkout/${id}`, formData, {
+      await axios.put(`${API}/attendance/checkout/${sessionId}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -1125,22 +1125,20 @@ function Dashboard({ token, user, onLogout }) {
 
                   <p style={{ color: '#6b7280', fontSize: '0.8rem', marginTop: '0.5rem' }}>
                     {todaysOpen
-                      ? canCheckOutNow(todaysOpen)
-                        ? 'You can check out now'
-                        : 'Time Out available after 10PM for overtime sessions'
+                      ? 'You can check out anytime'
                       : 'Check in first to document your work'}
                   </p>
                   <div style={{ display: 'flex', gap: '20px', marginTop: '1rem', flexWrap: 'wrap' }}>
                     <button
-                      onClick={() => todaysOpen && checkOut(todaysOpen.id)}
-                      disabled={buttonLoading || !todaysOpen || !canCheckOutNow(todaysOpen)}
+                      onClick={() => checkOut(todaysOpen?.id || todaysOpen?.allSessions?.find(s => !s.time_out)?.id)}
+                      disabled={buttonLoading || !todaysOpen}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px',
-                        opacity: (!todaysOpen || !canCheckOutNow(todaysOpen)) ? 0.6 : 1,
-                        cursor: (!todaysOpen || !canCheckOutNow(todaysOpen)) ? 'not-allowed' : 'pointer'
+                        opacity: !todaysOpen ? 0.6 : 1,
+                        cursor: !todaysOpen ? 'not-allowed' : 'pointer'
                       }}
                     >
                       {buttonLoading ? (
