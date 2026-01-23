@@ -243,6 +243,7 @@ function Login({ onLogin }) {
                     placeholder="First name"
                     value={formData.firstName}
                     onChange={handleInputChange}
+                    maxLength="12"
                     required
                     className="flex-1 w-full px-4 py-3.5 bg-navy border-2 border-primary/20 rounded-xl text-white text-base transition-all focus:outline-none focus:border-primary focus:bg-navy-light focus:shadow-[0_0_0_3px_rgba(255,113,32,0.1)] focus:-translate-y-0.5 placeholder:text-gray-500"
                   />
@@ -252,6 +253,7 @@ function Login({ onLogin }) {
                     placeholder="Last name"
                     value={formData.lastName}
                     onChange={handleInputChange}
+                    maxLength="12"
                     required
                     className="flex-1 w-full px-4 py-3.5 bg-navy border-2 border-primary/20 rounded-xl text-white text-base transition-all focus:outline-none focus:border-primary focus:bg-navy-light focus:shadow-[0_0_0_3px_rgba(255,113,32,0.1)] focus:-translate-y-0.5 placeholder:text-gray-500"
                   />

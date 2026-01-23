@@ -14,6 +14,7 @@ function Profile({ token, user, onLogout }) {
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [totalHours, setTotalHours] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showCharLimitModal, setShowCharLimitModal] = useState(false);
 
   const showAlert = (type, title, message) => {
     setAlert({ type, title, message });
@@ -176,6 +177,47 @@ function Profile({ token, user, onLogout }) {
         />
       )}
 
+      {showCharLimitModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: '#00273C',
+            padding: '2rem',
+            borderRadius: '12px',
+            maxWidth: '400px',
+            border: '2px solid #FF7120',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ color: '#FF7120', marginBottom: '1rem' }}>Character Limit Reached</h3>
+            <p style={{ color: '#e8eaed', marginBottom: '1.5rem' }}>Full name cannot exceed 24 characters.</p>
+            <button
+              onClick={() => setShowCharLimitModal(false)}
+              style={{
+                background: '#FF7120',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '0.75rem 2rem',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="dashboard">
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
           {loading ? (
@@ -289,8 +331,14 @@ function Profile({ token, user, onLogout }) {
               <input
                 type="text"
                 value={profile.full_name}
-                onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                onChange={(e) => {
+                  if (e.target.value.length >= 24) {
+                    setShowCharLimitModal(true);
+                  }
+                  setProfile({ ...profile, full_name: e.target.value });
+                }}
                 disabled={!isEditing}
+                maxLength={24}
                 style={{
                   width: '100%',
                   padding: '0.75rem',

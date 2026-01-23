@@ -54,24 +54,6 @@ function Dashboard({ token, user, onLogout }) {
     return morningOpen || afternoonOpen || otOpen;
   });
   const todaysEntries = attendance.filter(a => a.date === today);
-  
-  console.log('DEBUG - Button State:', {
-    todaysOpen: !!todaysOpen,
-    todaysOpenData: todaysOpen,
-    buttonDisabled: !todaysOpen
-  });
-
-  // Debug logging
-  useEffect(() => {
-    console.log('DEBUG - Today:', today);
-    console.log('DEBUG - Current time:', new Date().toLocaleTimeString());
-    console.log('DEBUG - Attendance data:', attendance);
-    console.log('DEBUG - Todays entries:', todaysEntries);
-    console.log('DEBUG - Todays open session:', todaysOpen);
-    if (attendance.length > 0) {
-      console.log('DEBUG - All dates:', attendance.map(a => a.date));
-    }
-  }, [attendance, today, todaysEntries, todaysOpen]);
 
   const canCheckInNow = () => {
     const phTime = toZonedTime(new Date(), 'Asia/Manila');
@@ -513,13 +495,8 @@ function Dashboard({ token, user, onLogout }) {
   };
 
   const checkOut = async (id) => {
-    console.log('DEBUG - checkOut called');
-    console.log('DEBUG - todaysOpen:', todaysOpen);
-    console.log('DEBUG - id:', id);
-    
     // Prevent checkout if no active session
     if (!todaysOpen) {
-      console.log('DEBUG - No active session, returning early');
       return;
     }
     

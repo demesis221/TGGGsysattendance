@@ -32,6 +32,7 @@ function App() {
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const unreadCount = notifications.filter(n => !n.is_read).length;
+  const isFetchingProfile = React.useRef(false);
 
   useEffect(() => {
     if (token) {
@@ -86,10 +87,21 @@ function App() {
   };
 
   const fetchUserProfile = async () => {
-    const { data } = await axios.get(`${API}/profile`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setUserProfile(data);
+    if (isFetchingProfile.current) return; // Prevent duplicate requests
+    isFetchingProfile.current = true;
+    try {
+      const { data } = await axios.get(`${API}/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserProfile(data);
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+      if (err.response?.status === 401) {
+        handleLogout();
+      }
+    } finally {
+      isFetchingProfile.current = false;
+    }
   };
 
   const handleLogin = (newToken, newUser) => {
