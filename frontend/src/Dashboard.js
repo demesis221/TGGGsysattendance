@@ -265,17 +265,12 @@ function Dashboard({ token, user, onLogout }) {
       return { ...entry, session };
     });
     
-    // For coordinator: show individual sessions
-    if (user.role === 'coordinator') {
-      setAttendance(withSession.sort((a, b) => new Date(b.date) - new Date(a.date)));
-      return;
-    }
-    
-    // For intern: consolidate by date
+    // Consolidate by date for both coordinator and intern
     const consolidatedByDate = {};
     withSession.forEach(entry => {
-      if (!consolidatedByDate[entry.date]) {
-        consolidatedByDate[entry.date] = {
+      const key = `${entry.date}_${entry.user_id}`;
+      if (!consolidatedByDate[key]) {
+        consolidatedByDate[key] = {
           date: entry.date,
           user_id: entry.user_id,
           full_name: entry.full_name,
@@ -303,45 +298,45 @@ function Dashboard({ token, user, onLogout }) {
         };
       }
       
-      let overallStatus = consolidatedByDate[entry.date].overall_status || 'On-Time';
+      let overallStatus = consolidatedByDate[key].overall_status || 'On-Time';
       if (entry.status === 'Late') overallStatus = 'Late';
       
       const { lateMinutes, hoursWorked } = calculateSessionMetrics(entry);
       
       if (entry.session === 'Morning') {
-        consolidatedByDate[entry.date].morning_time_in = entry.time_in;
-        consolidatedByDate[entry.date].morning_time_out = entry.time_out;
-        consolidatedByDate[entry.date].morning_status = entry.status;
-        consolidatedByDate[entry.date].morning_late_minutes = lateMinutes;
-        consolidatedByDate[entry.date].morning_hours_worked = hoursWorked;
+        consolidatedByDate[key].morning_time_in = entry.time_in;
+        consolidatedByDate[key].morning_time_out = entry.time_out;
+        consolidatedByDate[key].morning_status = entry.status;
+        consolidatedByDate[key].morning_late_minutes = lateMinutes;
+        consolidatedByDate[key].morning_hours_worked = hoursWorked;
       } else if (entry.session === 'Afternoon') {
-        consolidatedByDate[entry.date].afternoon_time_in = entry.time_in;
-        consolidatedByDate[entry.date].afternoon_time_out = entry.time_out;
-        consolidatedByDate[entry.date].afternoon_status = entry.status;
-        consolidatedByDate[entry.date].afternoon_late_minutes = lateMinutes;
-        consolidatedByDate[entry.date].afternoon_hours_worked = hoursWorked;
+        consolidatedByDate[key].afternoon_time_in = entry.time_in;
+        consolidatedByDate[key].afternoon_time_out = entry.time_out;
+        consolidatedByDate[key].afternoon_status = entry.status;
+        consolidatedByDate[key].afternoon_late_minutes = lateMinutes;
+        consolidatedByDate[key].afternoon_hours_worked = hoursWorked;
       } else if (entry.session === 'Overtime') {
-        consolidatedByDate[entry.date].ot_time_in = entry.time_in;
-        consolidatedByDate[entry.date].ot_time_out = entry.time_out;
-        consolidatedByDate[entry.date].ot_status = entry.status;
-        consolidatedByDate[entry.date].ot_late_minutes = lateMinutes;
-        consolidatedByDate[entry.date].ot_hours_worked = hoursWorked;
+        consolidatedByDate[key].ot_time_in = entry.time_in;
+        consolidatedByDate[key].ot_time_out = entry.time_out;
+        consolidatedByDate[key].ot_status = entry.status;
+        consolidatedByDate[key].ot_late_minutes = lateMinutes;
+        consolidatedByDate[key].ot_hours_worked = hoursWorked;
       }
       
-      consolidatedByDate[entry.date].overall_status = overallStatus;
-      consolidatedByDate[entry.date].total_late_minutes += lateMinutes;
-      consolidatedByDate[entry.date].total_hours_worked += hoursWorked;
+      consolidatedByDate[key].overall_status = overallStatus;
+      consolidatedByDate[key].total_late_minutes += lateMinutes;
+      consolidatedByDate[key].total_hours_worked += hoursWorked;
       
       if (entry.work_documentation) {
-        consolidatedByDate[entry.date].work_documentation = entry.work_documentation;
+        consolidatedByDate[key].work_documentation = entry.work_documentation;
       }
       if (entry.attachments && Array.isArray(entry.attachments)) {
-        consolidatedByDate[entry.date].attachments = [...new Set([...consolidatedByDate[entry.date].attachments, ...entry.attachments])];
+        consolidatedByDate[key].attachments = [...new Set([...consolidatedByDate[key].attachments, ...entry.attachments])];
       }
       if (entry.photo_path) {
-        consolidatedByDate[entry.date].photo_path = entry.photo_path;
+        consolidatedByDate[key].photo_path = entry.photo_path;
       }
-      consolidatedByDate[entry.date].allSessions.push(entry);
+      consolidatedByDate[key].allSessions.push(entry);
     });
     
     const consolidated = Object.values(consolidatedByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1228,27 +1223,14 @@ function Dashboard({ token, user, onLogout }) {
                     <tr>
                       {user.role === 'coordinator' && <th>Intern Name</th>}
                       <th>Date</th>
-                      {user.role === 'coordinator' ? (
-                        <>
-                          <th>Session</th>
-                          <th>Time In</th>
-                          <th>Time Out</th>
-                          <th>Status</th>
-                          <th>Hours</th>
-                          <th>Late (min)</th>
-                        </>
-                      ) : (
-                        <>
-                          <th>AM In</th>
-                          <th>AM Out</th>
-                          <th>PM In</th>
-                          <th>PM Out</th>
-                          <th>OT In</th>
-                          <th>OT Out</th>
-                          <th>Total Hours</th>
-                          <th>Late (min)</th>
-                        </>
-                      )}
+                      <th>AM In</th>
+                      <th>AM Out</th>
+                      <th>PM In</th>
+                      <th>PM Out</th>
+                      <th>OT In</th>
+                      <th>OT Out</th>
+                      <th>Total Hours</th>
+                      <th>Late (min)</th>
                       <th>Work Done</th>
                       <th>Attachments</th>
                       <th>Photo</th>
@@ -1265,48 +1247,35 @@ function Dashboard({ token, user, onLogout }) {
                         <tr key={(a.id || a.date) + (a.user_id || '')}>
                           {user.role === 'coordinator' && <td>{a.full_name}</td>}
                           <td>{a.date}</td>
-                          {user.role === 'coordinator' ? (
-                            <>
-                              <td><span style={{ background: a.session === 'Morning' ? 'rgba(255, 193, 7, 0.2)' : a.session === 'Afternoon' ? 'rgba(0, 123, 255, 0.2)' : 'rgba(108, 117, 125, 0.2)', color: a.session === 'Morning' ? '#ffc107' : a.session === 'Afternoon' ? '#007bff' : '#6c757d', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '600' }}>{a.session}</span></td>
-                              <td>{formatTime(a.time_in)}</td>
-                              <td>{formatTime(a.time_out) || '-'}</td>
-                              <td><span style={{ background: a.status === 'On-Time' ? 'rgba(40, 167, 69, 0.2)' : 'rgba(255, 157, 92, 0.2)', color: a.status === 'On-Time' ? '#28a745' : '#ff9d5c', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '600' }}>{a.status}</span></td>
-                              <td>{hoursWorked > 0 ? <span style={{ color: '#28a745', fontWeight: '600' }}>{Math.floor(hoursWorked / 60)}h {hoursWorked % 60}m</span> : '-'}</td>
-                              <td>{lateMinutes > 0 ? <span style={{ color: '#ff9d5c', fontWeight: '600' }}>{lateMinutes}m</span> : '-'}</td>
-                            </>
-                          ) : (
-                            <>
-                              <td>{formatTime(a.morning_time_in) || '-'}</td>
-                              <td>{formatTime(a.morning_time_out) || '-'}</td>
-                              <td>{formatTime(a.afternoon_time_in) || '-'}</td>
-                              <td>{formatTime(a.afternoon_time_out) || '-'}</td>
-                              <td>{formatTime(a.ot_time_in) || '-'}</td>
-                              <td>{formatTime(a.ot_time_out) || '-'}</td>
-                              <td>
-                                {a.total_hours_worked > 0 ? (
-                                  <span style={{ color: '#28a745', fontWeight: '600' }}>
-                                    {Math.floor(a.total_hours_worked / 60)}h {a.total_hours_worked % 60}m
-                                  </span>
-                                ) : '-'}
-                              </td>
-                              <td>
-                                {a.total_late_minutes > 0 ? (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                    {a.morning_late_minutes > 0 && (
-                                      <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>M: {a.morning_late_minutes}m</span>
-                                    )}
-                                    {a.afternoon_late_minutes > 0 && (
-                                      <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>A: {a.afternoon_late_minutes}m</span>
-                                    )}
-                                    {a.ot_late_minutes > 0 && (
-                                      <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>OT: {a.ot_late_minutes}m</span>
-                                    )}
-                                    <span style={{ color: '#FF7120', fontWeight: 'bold', fontSize: '0.85rem', marginTop: '4px' }}>Total: {a.total_late_minutes}m</span>
-                                  </div>
-                                ) : '-'}
-                              </td>
-                            </>
-                          )}
+                          <td>{formatTime(a.morning_time_in) || '-'}</td>
+                          <td>{formatTime(a.morning_time_out) || '-'}</td>
+                          <td>{formatTime(a.afternoon_time_in) || '-'}</td>
+                          <td>{formatTime(a.afternoon_time_out) || '-'}</td>
+                          <td>{formatTime(a.ot_time_in) || '-'}</td>
+                          <td>{formatTime(a.ot_time_out) || '-'}</td>
+                          <td>
+                            {a.total_hours_worked > 0 ? (
+                              <span style={{ color: '#28a745', fontWeight: '600' }}>
+                                {Math.floor(a.total_hours_worked / 60)}h {a.total_hours_worked % 60}m
+                              </span>
+                            ) : '-'}
+                          </td>
+                          <td>
+                            {a.total_late_minutes > 0 ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                {a.morning_late_minutes > 0 && (
+                                  <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>M: {a.morning_late_minutes}m</span>
+                                )}
+                                {a.afternoon_late_minutes > 0 && (
+                                  <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>A: {a.afternoon_late_minutes}m</span>
+                                )}
+                                {a.ot_late_minutes > 0 && (
+                                  <span style={{ color: '#ff9d5c', fontWeight: '600', fontSize: '0.85rem' }}>OT: {a.ot_late_minutes}m</span>
+                                )}
+                                <span style={{ color: '#FF7120', fontWeight: 'bold', fontSize: '0.85rem', marginTop: '4px' }}>Total: {a.total_late_minutes}m</span>
+                              </div>
+                            ) : '-'}
+                          </td>
                           <td>
                             {a.work_documentation ? (
                               <div>
