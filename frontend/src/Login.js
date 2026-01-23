@@ -52,6 +52,15 @@ function Login({ onLogin }) {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    // Validate name fields to only allow letters, spaces, hyphens, and apostrophes
+    if ((name === 'firstName' || name === 'lastName') && value) {
+      const nameRegex = /^[a-zA-Z\s'-]*$/;
+      if (!nameRegex.test(value)) {
+        return; // Don't update if contains invalid characters
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -59,9 +68,22 @@ function Login({ onLogin }) {
     setError(''); // Clear error on input change
   };
 
+  const validateName = (name, fieldName) => {
+    if (!name || name.trim().length === 0) return `${fieldName} is required`;
+    const nameRegex = /^[a-zA-Z\s'-]+$/;
+    if (!nameRegex.test(name)) return `${fieldName} must contain only letters`;
+    if (/\d/.test(name)) return `${fieldName} cannot contain numbers`;
+    return null;
+  };
+
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return 'Invalid email format';
+    
+    // Check if email local part (before @) is purely numerical
+    const localPart = email.split('@')[0];
+    if (/^\d+$/.test(localPart)) return 'Email cannot be purely numerical';
+    
     if (!email.endsWith('@gmail.com')) return 'Only @gmail.com emails are allowed';
     return null;
   };
@@ -106,6 +128,20 @@ function Login({ onLogin }) {
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    
+    // Validate first name
+    const firstNameError = validateName(formData.firstName, 'First name');
+    if (firstNameError) {
+      setError(firstNameError);
+      return;
+    }
+    
+    // Validate last name
+    const lastNameError = validateName(formData.lastName, 'Last name');
+    if (lastNameError) {
+      setError(lastNameError);
+      return;
+    }
     
     // Validate email
     const emailError = validateEmail(formData.email);
