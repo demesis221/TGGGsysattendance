@@ -8,7 +8,7 @@ import Icon from './components/Icon';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-function TodoList({ token, user }) {
+function TodoList({ token, user, onNotificationUpdate }) {
   const [todos, setTodos] = useState([]);
   const [groups, setGroups] = useState([]);
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -131,8 +131,28 @@ function TodoList({ token, user }) {
     if (user?.role === 'coordinator') {
       fetchInterns();
     }
+    
+    // Check for tab navigation from notification
+    const savedTab = localStorage.getItem('todoActiveTab');
+    if (savedTab) {
+      setActiveTab(savedTab);
+      localStorage.removeItem('todoActiveTab');
+    }
     // eslint-disable-next-line
   }, [activeTab]);
+
+  // Auto-refresh tasks every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (activeTab === 'department') {
+        fetchDepartmentTasks();
+      } else {
+        fetchTodos(activeTab);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [activeTab, fetchTodos, fetchDepartmentTasks]);
 
 
 
@@ -194,6 +214,7 @@ function TodoList({ token, user }) {
       setTaskDescription('');
       setSelectedAssignee('');
       await fetchTodos(activeTab);
+      if (onNotificationUpdate) onNotificationUpdate();
     } catch (error) {
       console.error('Error adding task:', error);
       alert(error.response?.data?.error || 'Failed to add task.');
@@ -210,6 +231,7 @@ function TodoList({ token, user }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchTodos(activeTab);
+      if (onNotificationUpdate) onNotificationUpdate();
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to update task.');
     } finally {
@@ -255,6 +277,7 @@ function TodoList({ token, user }) {
       setShowConfirmModal(false);
       setConfirmingTodo(null);
       fetchTodos(activeTab);
+      if (onNotificationUpdate) onNotificationUpdate();
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to confirm task.');
     }
@@ -270,6 +293,7 @@ function TodoList({ token, user }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchTodos(activeTab);
+      if (onNotificationUpdate) onNotificationUpdate();
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to confirm completion.');
     } finally {
@@ -285,6 +309,7 @@ function TodoList({ token, user }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchTodos(activeTab);
+      if (onNotificationUpdate) onNotificationUpdate();
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to reject completion.');
     } finally {

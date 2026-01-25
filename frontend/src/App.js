@@ -34,6 +34,18 @@ function App() {
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const isFetchingProfile = React.useRef(false);
 
+  const refreshNotifications = async () => {
+    if (!token) return;
+    try {
+      const { data } = await axios.get(`${API}/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(data || []);
+    } catch (err) {
+      console.error('Notification refresh failed', err);
+    }
+  };
+
   useEffect(() => {
     if (token) {
       // Validate token immediately on mount
@@ -127,7 +139,17 @@ function App() {
       setNotifications(prev => 
         prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
       );
-      if (notification.link) changePage(notification.link);
+      
+      // Navigate based on notification link
+      if (notification.link) {
+        const [page, tab] = notification.link.split(':');
+        changePage(page);
+        // Store tab preference for TodoList to read
+        if (tab) {
+          localStorage.setItem('todoActiveTab', tab);
+        }
+      }
+      
       setShowNotifMenu(false);
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
@@ -181,7 +203,7 @@ function App() {
       case 'profile':
         return <Profile token={token} user={user} onLogout={handleLogout} />;
       case 'todos':
-        return <TodoList token={token} user={user} />;
+        return <TodoList token={token} user={user} onNotificationUpdate={refreshNotifications} />;
       case 'reports':
         return <Reports token={token} />;
       case 'overtime-requests':
