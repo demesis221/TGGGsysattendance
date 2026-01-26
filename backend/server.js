@@ -1463,6 +1463,25 @@ app.post('/api/todos', auth, async (req, res) => {
       todoData.suggested_by = req.user.id;
       todoData.is_confirmed = isLeader; // Auto-confirm if created by leader
       console.log('Creating group todo:', { group_id, suggested_by: req.user.id, is_confirmed: isLeader, isLeader });
+
+      // Notify leader if member suggests a task
+      if (!isLeader && group?.leader_id) {
+        const { data: suggester } = await supabaseAdmin
+          .from('profiles')
+          .select('full_name')
+          .eq('id', req.user.id)
+          .single();
+
+        const taskTitle = task.replace(/^\[.*?\]\s*/, '').substring(0, 60);
+        
+        await createNotification(
+          group.leader_id,
+          'group_task_suggested',
+          'New Team Task Suggestion',
+          `${suggester?.full_name || 'A member'} suggested a task: "${taskTitle}${taskTitle.length >= 60 ? '...' : ''}"`,
+          'todos:team:manage'
+        );
+      }
     } else if (todo_type === 'assigned') {
       // Only leaders or coordinators can assign tasks
       const isCoordinator = profile?.role === 'coordinator';
@@ -1666,7 +1685,7 @@ app.put('/api/todos/:id', auth, async (req, res) => {
           'task_pending_completion',
           'Task Completion Approval Pending',
           `${assignee?.full_name || 'Someone'} submitted task for approval: "${taskTitle}${taskTitle.length >= 60 ? '...' : ''}"`,
-          'todos:team'
+          'todos:team:manage'
         );
       }
     }
@@ -1702,7 +1721,7 @@ app.put('/api/todos/:id', auth, async (req, res) => {
 // Confirm group todo (leaders only) - with assignment details
 app.post('/api/todos/:id/confirm', auth, async (req, res) => {
   try {
-    const { start_date, deadline, assigned_to, task } = req.body;
+    const { start_date, deadline, assigned_to, task, description } = req.body;
 
     const { data: todo } = await supabaseAdmin
       .from('todos')
@@ -1728,6 +1747,7 @@ app.post('/api/todos/:id/confirm', auth, async (req, res) => {
     if (start_date) updateData.start_date = start_date;
     if (deadline) updateData.deadline = deadline;
     if (task) updateData.task = task;
+    if (description !== undefined) updateData.description = description;
 
     // If assigning to someone, change todo_type to 'assigned' and set assigned_to/assigned_by
     if (assigned_to) {
@@ -1745,15 +1765,31 @@ app.post('/api/todos/:id/confirm', auth, async (req, res) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
-    // Create notification for group task confirmation
+    // Notify suggestor about confirmation
     if (todo.suggested_by) {
-      const taskTitle = todo.task.replace(/^\[.*?\]\s*/, '').substring(0, 60);
+      const taskTitle = (task || todo.task).replace(/^\[.*?\]\s*/, '').substring(0, 60);
       
       await createNotification(
         todo.suggested_by,
         'group_task_confirmed',
-        'Task Confirmed',
-        `Your suggested task was confirmed: "${taskTitle}${taskTitle.length >= 60 ? '...' : ''}"`,
+        'Team Task Approved',
+        `Leader approved your suggestion: "${taskTitle}${taskTitle.length >= 60 ? '...' : ''}"`,
+        'todos:team'
+      );
+    }
+
+    // Notify assignee if task was assigned to someone (even if they're the suggestor)
+    if (assigned_to) {
+      const taskTitle = (task || todo.task).replace(/^\[.*?\]\s*/, '').substring(0, 60);
+      const isSelfAssign = assigned_to === req.user.id;
+      
+      await createNotification(
+        assigned_to,
+        'task_assigned',
+        'Task Assigned to You',
+        isSelfAssign 
+          ? `You assigned yourself a task: "${taskTitle}${taskTitle.length >= 60 ? '...' : ''}"` 
+          : `Leader assigned you a task: "${taskTitle}${taskTitle.length >= 60 ? '...' : ''}"`,
         'todos:team'
       );
     }
@@ -1924,6 +1960,19 @@ app.delete('/api/todos/:id', auth, async (req, res) => {
 
     if (!canDelete) {
       return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Notify suggestor if their suggestion is rejected (deleted before confirmation)
+    if (todo.todo_type === 'group' && !todo.is_confirmed && todo.suggested_by) {
+      const taskTitle = todo.task.replace(/^\[.*?\]\s*/, '').substring(0, 60);
+      
+      await createNotification(
+        todo.suggested_by,
+        'group_task_rejected',
+        'Team Task Declined',
+        `Leader declined your suggestion: "${taskTitle}${taskTitle.length >= 60 ? '...' : ''}"`,
+        'todos:team'
+      );
     }
 
     const { error } = await supabaseAdmin
@@ -2208,6 +2257,23 @@ app.put('/api/notifications/:id/read', auth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Mark notification read exception:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mark all notifications as read
+app.put('/api/notifications/read-all', auth, async (req, res) => {
+  try {
+    const { error } = await supabaseAdmin
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', req.user.id)
+      .eq('is_read', false);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Mark all notifications read exception:', err);
     res.status(500).json({ error: err.message });
   }
 });

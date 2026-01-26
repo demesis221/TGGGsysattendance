@@ -45,6 +45,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
   const [confirmDeadline, setConfirmDeadline] = useState('');
   const [confirmAssignee, setConfirmAssignee] = useState('');
   const [confirmTask, setConfirmTask] = useState('');
+  const [confirmDescription, setConfirmDescription] = useState('');
 
 
   const fetchUserProfile = useCallback(async () => {
@@ -69,10 +70,15 @@ function TodoList({ token, user, onNotificationUpdate }) {
     }
   }, [token]);
 
-  const fetchTodos = useCallback(async (tab = activeTab) => {
+  const fetchTodos = useCallback(async (tab = activeTab, subTab = teamSubTab) => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API}/todos?type=${tab}`, {
+      // For team tab, use 'group' type for manage subtab, 'team' for tasks subtab
+      let queryType = tab;
+      if (tab === 'team') {
+        queryType = subTab === 'manage' ? 'group' : 'team';
+      }
+      const { data } = await axios.get(`${API}/todos?type=${queryType}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTodos(data);
@@ -81,7 +87,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, token]);
+  }, [activeTab, teamSubTab, token]);
 
   const fetchAvailableUsers = useCallback(async () => {
     try {
@@ -173,6 +179,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
       };
 
       if (activeTab === 'team' && teamSubTab === 'tasks') {
+        // Members can suggest tasks for their group
         const userGroupId = groups.find(g =>
           g.members?.some(m =>
             String(m.user?.id) === String(userProfile?.id) ||
@@ -183,6 +190,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
         if (userGroupId) {
           todoData.todo_type = 'group';
           todoData.group_id = userGroupId;
+          // Members' suggestions need confirmation (backend handles this)
         }
       } else if (activeTab === 'team' && teamSubTab === 'manage' && isLeader) {
         const leaderGroupId = groups.find(g => g.leader_id === userProfile?.id)?.id;
@@ -257,6 +265,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
   const openConfirmModal = (todo) => {
     setConfirmingTodo(todo);
     setConfirmTask(todo.task.replace(/\[.*?\]\s*/, '')); // Remove date prefix
+    setConfirmDescription(todo.description || '');
     setConfirmStartDate(new Date().toISOString().split('T')[0]);
     setConfirmDeadline('');
     setConfirmAssignee('');
@@ -268,6 +277,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     try {
       await axios.post(`${API}/todos/${confirmingTodo.id}/confirm`, {
         task: `[${selectedDate.toLocaleDateString()}] ${confirmTask}`,
+        description: confirmDescription,
         start_date: confirmStartDate || null,
         deadline: confirmDeadline || null,
         assigned_to: confirmAssignee || null
@@ -392,6 +402,14 @@ function TodoList({ token, user, onNotificationUpdate }) {
   const suggestDepartmentTask = async (e) => {
     e.preventDefault();
     if (!dateTask.trim() || submitting) return;
+    if (deadlineDate && selectedDate) {
+      const deadlineStr = deadlineDate.toISOString().split('T')[0];
+      const startStr = selectedDate.toISOString().split('T')[0];
+      if (deadlineStr < startStr) {
+        alert('Deadline cannot be earlier than start date.');
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       await axios.post(`${API}/department-tasks`, {
@@ -511,7 +529,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
 
   const canAddTodo = () => {
     if (activeTab === 'personal') return true;
-    if (activeTab === 'team' && teamSubTab === 'tasks') return !isLeader && groups.length > 0;
+    if (activeTab === 'team' && teamSubTab === 'tasks') return !isLeader && groups.length > 0; // Only non-leaders can suggest in tasks tab
     if (activeTab === 'team' && teamSubTab === 'manage') return isLeader && leaderHasGroup;
     return false;
   };
@@ -559,7 +577,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
       {activeTab === 'team' && isLeader && (
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
           <button
-            onClick={() => setTeamSubTab('tasks')}
+            onClick={() => { setTeamSubTab('tasks'); fetchTodos('team', 'tasks'); }}
             style={{
               padding: '0.5rem 0.75rem',
               background: teamSubTab === 'tasks' ? '#FF7120' : 'transparent',
@@ -574,7 +592,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
             Tasks
           </button>
           <button
-            onClick={() => setTeamSubTab('manage')}
+            onClick={() => { setTeamSubTab('manage'); fetchTodos('team', 'manage'); }}
             style={{
               padding: '0.5rem 0.75rem',
               background: teamSubTab === 'manage' ? '#FF7120' : 'transparent',
@@ -689,6 +707,9 @@ function TodoList({ token, user, onNotificationUpdate }) {
 
           {activeTab === 'personal' && (
             <TaskForm activeTab={activeTab} isLeader={isLeader} canAddTodo={canAddTodo()} dateTask={dateTask} setDateTask={setDateTask} taskDescription={taskDescription} setTaskDescription={setTaskDescription} selectedAssignee={selectedAssignee} setSelectedAssignee={setSelectedAssignee} selectedDate={selectedDate} setSelectedDate={setSelectedDate} deadlineDate={deadlineDate} setDeadlineDate={setDeadlineDate} onSubmit={addDateTodo} getGroupMembersForAssign={getGroupMembersForAssign} submitting={submitting} />
+          )}
+          {activeTab === 'team' && teamSubTab === 'tasks' && !isLeader && (
+            <TaskForm activeTab="team-suggest" isLeader={isLeader} canAddTodo={canAddTodo()} dateTask={dateTask} setDateTask={setDateTask} taskDescription={taskDescription} setTaskDescription={setTaskDescription} selectedAssignee={selectedAssignee} setSelectedAssignee={setSelectedAssignee} selectedDate={selectedDate} setSelectedDate={setSelectedDate} deadlineDate={deadlineDate} setDeadlineDate={setDeadlineDate} onSubmit={addDateTodo} getGroupMembersForAssign={getGroupMembersForAssign} submitting={submitting} />
           )}
           {activeTab === 'team' && teamSubTab === 'manage' && (
             <TaskForm activeTab="group" isLeader={isLeader} canAddTodo={canAddTodo()} dateTask={dateTask} setDateTask={setDateTask} taskDescription={taskDescription} setTaskDescription={setTaskDescription} selectedAssignee={selectedAssignee} setSelectedAssignee={setSelectedAssignee} selectedDate={selectedDate} setSelectedDate={setSelectedDate} deadlineDate={deadlineDate} setDeadlineDate={setDeadlineDate} onSubmit={addDateTodo} getGroupMembersForAssign={getGroupMembersForAssign} submitting={submitting} />
@@ -1082,7 +1103,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
 
       <ManageLeadersModal show={showLeaderModal && isCoordinator} onClose={() => setShowLeaderModal(false)} interns={interns} onToggleLeader={toggleLeader} Icon={Icon} />
 
-      <ConfirmTaskModal show={showConfirmModal} onClose={() => { setShowConfirmModal(false); setConfirmingTodo(null); }} onConfirm={submitConfirmTodo} todo={confirmingTodo} task={confirmTask} setTask={setConfirmTask} startDate={confirmStartDate} setStartDate={setConfirmStartDate} deadline={confirmDeadline} setDeadline={setConfirmDeadline} assignee={confirmAssignee} setAssignee={setConfirmAssignee} members={getGroupMembersForAssign()} Icon={Icon} />
+      <ConfirmTaskModal show={showConfirmModal} onClose={() => { setShowConfirmModal(false); setConfirmingTodo(null); }} onConfirm={submitConfirmTodo} todo={confirmingTodo} task={confirmTask} setTask={setConfirmTask} description={confirmDescription} setDescription={setConfirmDescription} startDate={confirmStartDate} setStartDate={setConfirmStartDate} deadline={confirmDeadline} setDeadline={setConfirmDeadline} assignee={confirmAssignee} setAssignee={setConfirmAssignee} members={getGroupMembersForAssign()} Icon={Icon} />
     </div>
 
   );

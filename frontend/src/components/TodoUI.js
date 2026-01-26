@@ -117,13 +117,27 @@ export const GroupInfo = ({ groups, userProfile, Icon }) => {
   );
 };
 
-export const TaskForm = ({ activeTab, isLeader, canAddTodo, dateTask, setDateTask, taskDescription, setTaskDescription, selectedAssignee, setSelectedAssignee, selectedDate, setSelectedDate, deadlineDate, setDeadlineDate, onSubmit, getGroupMembersForAssign, submitting }) => (
+export const TaskForm = ({ activeTab, isLeader, canAddTodo, dateTask, setDateTask, taskDescription, setTaskDescription, selectedAssignee, setSelectedAssignee, selectedDate, setSelectedDate, deadlineDate, setDeadlineDate, onSubmit, getGroupMembersForAssign, submitting }) => {
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (deadlineDate && selectedDate) {
+      const deadlineStr = new Date(deadlineDate).toISOString().split('T')[0];
+      const startStr = new Date(selectedDate).toISOString().split('T')[0];
+      if (deadlineStr < startStr) {
+        alert('Deadline cannot be earlier than start date.');
+        return;
+      }
+    }
+    onSubmit(e);
+  };
+  
+  return (
   <div className="checkin-form" style={{ marginTop: '1rem', padding: '1rem' }}>
-    <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>{activeTab === 'team' ? 'Suggest Task' : 'Add Task'}</h3>
+    <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>{activeTab === 'team-suggest' ? 'Suggest Task' : activeTab === 'group' ? 'Assign Task' : 'Add Task'}</h3>
     {canAddTodo ? (
-      <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <input type="text" value={dateTask} onChange={(e) => setDateTask(e.target.value)} placeholder={activeTab === 'assigned' ? 'Enter task to assign...' : 'Enter your task...'} style={{ width: '100%', padding: '0.75rem', background: '#001824', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', fontSize: '0.9rem' }} required disabled={submitting} />
-        {(activeTab === 'group' || activeTab === 'personal') && (
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <input type="text" value={dateTask} onChange={(e) => setDateTask(e.target.value)} placeholder={activeTab === 'team-suggest' ? 'Suggest a task for your team...' : activeTab === 'assigned' ? 'Enter task to assign...' : 'Enter your task...'} style={{ width: '100%', padding: '0.75rem', background: '#001824', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', fontSize: '0.9rem' }} required disabled={submitting} />
+        {(activeTab === 'group' || activeTab === 'personal' || activeTab === 'team-suggest') && (
           <textarea value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)} placeholder="Task description (optional)..." maxLength={500} style={{ width: '100%', padding: '0.75rem', background: '#001824', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', fontSize: '0.9rem', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit' }} disabled={submitting} />
         )}
         {activeTab === 'group' && (
@@ -145,7 +159,7 @@ export const TaskForm = ({ activeTab, isLeader, canAddTodo, dateTask, setDateTas
           </div>
         )}
         <button type="submit" className="todo-add-btn" style={{ width: '100%', padding: '0.75rem', opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }} disabled={submitting}>
-          {submitting ? 'Submitting...' : (activeTab === 'team' ? 'Suggest Task' : activeTab === 'group' ? 'Assign Task' : 'Add Task')}
+          {submitting ? 'Submitting...' : (activeTab === 'team-suggest' ? 'Suggest Task' : activeTab === 'group' ? 'Assign Task' : 'Add Task')}
         </button>
       </form>
     ) : (
@@ -153,12 +167,14 @@ export const TaskForm = ({ activeTab, isLeader, canAddTodo, dateTask, setDateTas
         <p style={{ margin: 0, color: '#e8eaed', fontSize: '0.9rem' }}>
           {activeTab === 'group' && (isLeader) && 'Leaders assign tasks via the Group tab.'}
           {activeTab === 'group' && !isLeader && 'You need to be in a group to add group tasks.'}
+          {activeTab === 'team-suggest' && 'You need to be in a group to suggest tasks.'}
           {activeTab === 'assigned' && 'Only leaders and coordinators can assign tasks.'}
         </p>
       </div>
     )}
   </div>
-);
+  );
+};
 
 export const TeamFilter = ({ filterText, setFilterText, filterMember, setFilterMember, groups, Icon }) => (
   <div style={{ background: '#001f35', padding: '1rem', marginBottom: '1rem', borderRadius: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'center', border: '1px solid rgba(255, 255, 255, 0.05)' }}>

@@ -55,7 +55,8 @@ function NotificationPanel({ notifications, onNotificationClick, onMarkAllRead }
               fontSize: '0.85rem',
               cursor: 'pointer',
               padding: '0.25rem 0.5rem',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              marginLeft: 'auto'
             }}
           >
             Mark all read

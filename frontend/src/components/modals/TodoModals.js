@@ -89,16 +89,29 @@ export const ManageLeadersModal = ({ show, onClose, interns, onToggleLeader, Ico
   );
 };
 
-export const ConfirmTaskModal = ({ show, onClose, onConfirm, todo, task, setTask, startDate, setStartDate, deadline, setDeadline, assignee, setAssignee, members, Icon }) => {
+export const ConfirmTaskModal = ({ show, onClose, onConfirm, todo, task, setTask, description, setDescription, startDate, setStartDate, deadline, setDeadline, assignee, setAssignee, members, Icon }) => {
   if (!show || !todo) return null;
+  
+  const handleConfirm = () => {
+    if (deadline && startDate && deadline < startDate) {
+      alert('Deadline cannot be earlier than start date.');
+      return;
+    }
+    onConfirm();
+  };
+  
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
       <div style={{ background: '#001824', borderRadius: '16px', padding: '2rem', maxWidth: '500px', width: '100%', border: '1px solid rgba(255, 113, 32, 0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
         <h2 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#e8eaed' }}><Icon name="check" size={24} color="#FF7120" strokeWidth={2} />Confirm Task</h2>
         {todo.suggester && <p style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '1rem' }}>Suggested by: <span style={{ color: '#FF7120' }}>{todo.suggester.full_name}</span></p>}
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#e8eaed', fontSize: '0.85rem' }}>Task Description</label>
-          <textarea value={task} onChange={(e) => setTask(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: '#00273C', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', fontSize: '0.9rem', minHeight: '80px', resize: 'vertical' }} />
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#e8eaed', fontSize: '0.85rem' }}>Task Title</label>
+          <textarea value={task} onChange={(e) => setTask(e.target.value)} style={{ width: '100%', padding: '0.75rem', background: '#00273C', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', fontSize: '0.9rem', minHeight: '60px', resize: 'vertical' }} />
+        </div>
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#e8eaed', fontSize: '0.85rem' }}>Description (Optional)</label>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add task description..." style={{ width: '100%', padding: '0.75rem', background: '#00273C', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', fontSize: '0.9rem', minHeight: '80px', resize: 'vertical' }} />
         </div>
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', marginBottom: '0.5rem', color: '#e8eaed', fontSize: '0.85rem' }}>Start Date</label>
@@ -116,7 +129,7 @@ export const ConfirmTaskModal = ({ show, onClose, onConfirm, todo, task, setTask
           </select>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button onClick={onConfirm} style={{ flex: 1, padding: '0.75rem', background: '#28a745', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '600' }}>Confirm & Assign</button>
+          <button onClick={handleConfirm} style={{ flex: 1, padding: '0.75rem', background: '#28a745', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '600' }}>Confirm & Assign</button>
           <button onClick={onClose} style={{ flex: 1, padding: '0.75rem', background: 'transparent', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>Cancel</button>
         </div>
       </div>
