@@ -289,14 +289,13 @@ function Dashboard({ token, user, onLogout }) {
     });
     const withSession = data.map(entry => {
       if (!entry.time_in) return { ...entry, session: '-' };
-      const [h] = entry.time_in.split(':');
-      const hourNum = parseInt(h, 10);
+      const timeInMinutes = parseMinutes(entry.time_in);
       let session = '-';
-      if (hourNum < 12) {
+      if (timeInMinutes < 12 * 60) {
         session = 'Morning';
-      } else if (hourNum >= 12 && hourNum < 18) {
+      } else if (timeInMinutes >= 12 * 60 && timeInMinutes < 18 * 60) {
         session = 'Afternoon';
-      } else if (hourNum >= 18) {
+      } else if (timeInMinutes >= 18 * 60) {
         session = 'Overtime';
       }
       return { ...entry, session };
