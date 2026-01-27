@@ -251,8 +251,19 @@ function Reports({ token }) {
     const uniqueDates = new Set(internAttendance.map(a => a.date));
     const total = uniqueDates.size;
     
-    const onTime = internAttendance.filter(a => a.status === 'On-Time').length;
-    const late = internAttendance.filter(a => a.status === 'Late').length;
+    // Group by date to count on-time/late days correctly
+    const dateGroups = {};
+    internAttendance.forEach(record => {
+      if (!dateGroups[record.date]) {
+        dateGroups[record.date] = { hasLate: false };
+      }
+      if (record.status === 'Late') {
+        dateGroups[record.date].hasLate = true;
+      }
+    });
+    
+    const late = Object.values(dateGroups).filter(d => d.hasLate).length;
+    const onTime = total - late;
     
     let totalLateMinutes = 0;
     let totalMinutesWorked = 0;
@@ -268,8 +279,10 @@ function Reports({ token }) {
       }
     });
     
-    const totalHours = Math.floor(totalMinutesWorked / 60);
-    const totalMinutes = totalMinutesWorked % 60;
+    // Deduct late minutes from total worked minutes
+    const adjustedMinutesWorked = Math.max(0, totalMinutesWorked - totalLateMinutes);
+    const totalHours = Math.floor(adjustedMinutesWorked / 60);
+    const totalMinutes = adjustedMinutesWorked % 60;
     const totalLateHours = Math.floor(totalLateMinutes / 60);
     
     return { total, onTime, late, totalLateMinutes, totalLateHours, totalHours, totalMinutes };
