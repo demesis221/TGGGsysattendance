@@ -404,6 +404,22 @@ app.post('/api/attendance/checkin', auth, upload.single('photo'), async (req, re
     const isAfternoon = minutesSinceMidnight >= 12 * 60 && minutesSinceMidnight < 18 * 60;
     const isOvertime = minutesSinceMidnight >= 18 * 60;
 
+    // Check if overtime check-in requires approval
+    if (isOvertime) {
+      const { data: approvedOT, error: otError } = await supabaseAdmin
+        .from('overtime_requests')
+        .select('id')
+        .eq('user_id', req.user.id)
+        .not('supervisor_signature', 'is', null)
+        .gte('approval_date', date)
+        .lte('approval_date', date)
+        .single();
+
+      if (otError || !approvedOT) {
+        return res.status(403).json({ error: 'Overtime check-in requires approved overtime request for today.' });
+      }
+    }
+
     let lateMinutes = 0;
     let status = 'On-Time';
 
