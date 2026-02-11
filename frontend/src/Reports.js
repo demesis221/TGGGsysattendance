@@ -246,6 +246,8 @@ function Reports({ token }) {
 
 
   const calculateStats = (internId) => {
+    const intern = interns.find(i => i.id === internId);
+    const additionalMinutes = intern?.additional_hours || 0;
     const internAttendance = allAttendance.filter(a => a.user_id === internId);
     
     const uniqueDates = new Set(internAttendance.map(a => a.date));
@@ -279,13 +281,14 @@ function Reports({ token }) {
       }
     });
     
-    // Deduct late minutes from total worked minutes
-    const adjustedMinutesWorked = Math.max(0, totalMinutesWorked - totalLateMinutes);
+    // Deduct late minutes from total worked minutes and add additional hours
+    const adjustedMinutesWorked = Math.max(0, totalMinutesWorked - totalLateMinutes + additionalMinutes);
     const totalHours = Math.floor(adjustedMinutesWorked / 60);
     const totalMinutes = adjustedMinutesWorked % 60;
     const totalLateHours = Math.floor(totalLateMinutes / 60);
+    const additionalHours = Math.floor(additionalMinutes / 60);
     
-    return { total, onTime, late, totalLateMinutes, totalLateHours, totalHours, totalMinutes };
+    return { total, onTime, late, totalLateMinutes, totalLateHours, totalHours, totalMinutes, additionalHours };
   };
 
   const handleAdminCheckIn = async () => {
@@ -410,7 +413,14 @@ function Reports({ token }) {
                   </div>
                   <div style={{ background: '#00273C', padding: '0.75rem', borderRadius: '8px' }}>
                     <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>Total Hours</p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: '600', color: '#FF7120', margin: 0 }}>{stats.totalHours}h {stats.totalMinutes}m</p>
+                    <p style={{ fontSize: '1.5rem', fontWeight: '600', color: '#FF7120', margin: 0 }}>
+                      {stats.totalHours}h {stats.totalMinutes}m
+                      {stats.additionalHours > 0 && (
+                        <span style={{ fontSize: '0.75rem', color: '#28a745', marginLeft: '0.5rem' }}>
+                          +{stats.additionalHours}h
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div style={{ background: '#00273C', padding: '0.75rem', borderRadius: '8px' }}>
                     <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>On-Time</p>

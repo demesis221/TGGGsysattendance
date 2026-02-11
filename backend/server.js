@@ -643,7 +643,7 @@ app.get('/api/interns', auth, async (req, res) => {
 
   const { data, error } = await supabaseAdmin
     .from('profiles')
-    .select('id, full_name, profile_picture, is_leader')
+    .select('id, full_name, profile_picture, is_leader, additional_hours')
     .eq('role', 'intern')
     .order('full_name');
 
