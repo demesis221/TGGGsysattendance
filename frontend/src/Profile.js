@@ -47,51 +47,78 @@ function Profile({ token, user, onLogout }) {
     return h * 60 + m;
   };
 
+  const determineSession = (timeIn) => {
+    if (!timeIn) return null;
+    let hour;
+    if (timeIn.includes('AM') || timeIn.includes('PM')) {
+      const [time] = timeIn.split(' ');
+      const [h] = time.split(':');
+      hour = parseInt(h, 10);
+      if (timeIn.includes('PM') && hour !== 12) hour += 12;
+      if (timeIn.includes('AM') && hour === 12) hour = 0;
+    } else {
+      const [h] = timeIn.split(':');
+      hour = parseInt(h, 10);
+    }
+    if (hour < 12) return 'Morning';
+    if (hour >= 12 && hour < 18) return 'Afternoon';
+    return 'Overtime';
+  };
+
+  const calculateMinutesWorked = (timeIn, timeOut, session) => {
+    if (!timeIn || !timeOut) return 0;
+    const inMinutes = parseMinutes(timeIn);
+    const outMinutes = parseMinutes(timeOut);
+    if (inMinutes === null || outMinutes === null) return 0;
+    if (inMinutes === outMinutes) return 0;
+    
+    const morningBaseline = 8 * 60;
+    const afternoonBaseline = 13 * 60;
+    const overtimeBaseline = 19 * 60;
+    const morningGrace = 8 * 60 + 5;
+    const afternoonGrace = 13 * 60 + 5;
+    const overtimeGrace = 19 * 60 + 5;
+    const morningEnd = 12 * 60;
+    const afternoonEnd = 17 * 60;
+    const overtimeEnd = 22 * 60;
+    
+    if (session === 'Morning') {
+      const effectiveStart = inMinutes <= morningGrace ? morningBaseline : inMinutes;
+      const effectiveEnd = Math.min(outMinutes, morningEnd);
+      return Math.max(0, effectiveEnd - effectiveStart);
+    } else if (session === 'Afternoon') {
+      const effectiveStart = inMinutes <= afternoonGrace ? afternoonBaseline : inMinutes;
+      const effectiveEnd = Math.min(outMinutes, afternoonEnd);
+      return Math.max(0, effectiveEnd - effectiveStart);
+    } else if (session === 'Overtime') {
+      const effectiveStart = inMinutes <= overtimeGrace ? overtimeBaseline : inMinutes;
+      const effectiveEnd = Math.min(outMinutes, overtimeEnd);
+      return Math.max(0, effectiveEnd - effectiveStart);
+    }
+    return 0;
+  };
+
   const fetchAttendanceHours = async () => {
     try {
       const { data } = await axios.get(`${API}/attendance/my`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       let totalMinutes = 0;
+      let totalLateMinutes = 0;
       
       data.forEach(a => {
-        if (a.time_in && a.time_out) {
-          const inMinutes = parseMinutes(a.time_in);
-          const outMinutes = parseMinutes(a.time_out);
-          
-          if (inMinutes !== null && outMinutes !== null) {
-            const morningBaseline = 8 * 60; // 8:00 AM
-            const afternoonBaseline = 13 * 60; // 1:00 PM
-            const overtimeBaseline = 19 * 60; // 7:00 PM
-            const morningGrace = 8 * 60 + 5; // 8:05 AM
-            const afternoonGrace = 13 * 60 + 5; // 1:05 PM
-            const overtimeGrace = 19 * 60 + 5; // 7:05 PM
-            const morningEnd = 12 * 60; // 12:00 PM
-            const afternoonEnd = 17 * 60; // 5:00 PM
-            const overtimeEnd = 22 * 60; // 10:00 PM
-            
-            // Determine session based on check-in time
-            if (inMinutes < 12 * 60) {
-              // Morning session: if within grace (<=8:05 AM), count from 8 AM
-              const effectiveStart = inMinutes <= morningGrace ? morningBaseline : inMinutes;
-              const effectiveEnd = Math.min(outMinutes, morningEnd);
-              totalMinutes += Math.max(0, effectiveEnd - effectiveStart);
-            } else if (inMinutes >= 12 * 60 && inMinutes < 18 * 60) {
-              // Afternoon session: if within grace (<=1:05 PM), count from 1 PM
-              const effectiveStart = inMinutes <= afternoonGrace ? afternoonBaseline : inMinutes;
-              const effectiveEnd = Math.min(outMinutes, afternoonEnd);
-              totalMinutes += Math.max(0, effectiveEnd - effectiveStart);
-            } else {
-              // Overtime session (>= 6:00 PM): if within grace (<=7:05 PM), count from 7 PM
-              const effectiveStart = inMinutes <= overtimeGrace ? overtimeBaseline : inMinutes;
-              const effectiveEnd = Math.min(outMinutes, overtimeEnd);
-              totalMinutes += Math.max(0, effectiveEnd - effectiveStart);
-            }
-          }
+        totalLateMinutes += (a.late_minutes || 0);
+        
+        if (a.total_minutes_worked) {
+          totalMinutes += a.total_minutes_worked;
+        } else if (a.time_out) {
+          const session = determineSession(a.time_in);
+          totalMinutes += calculateMinutesWorked(a.time_in, a.time_out, session);
         }
       });
       
-      setTotalHours(totalMinutes);
+      const adjustedMinutes = Math.max(0, totalMinutes - totalLateMinutes + (profile.additional_hours || 0));
+      setTotalHours(adjustedMinutes);
     } catch (err) {
       console.error('Failed to compute total hours', err);
     }
@@ -415,6 +442,11 @@ function Profile({ token, user, onLogout }) {
               </div>
               <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#FFB36B' }}>
                 {Math.floor(totalHours / 60)}h {totalHours % 60}m
+                {profile.additional_hours > 0 && (
+                  <span style={{ fontSize: '0.85rem', color: '#28a745', marginLeft: '0.5rem' }}>
+                    +{Math.floor(profile.additional_hours / 60)}h
+                  </span>
+                )}
               </span>
             </div>
             )}

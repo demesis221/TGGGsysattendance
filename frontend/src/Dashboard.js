@@ -9,6 +9,12 @@ import 'react-quill/dist/quill.snow.css';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+const decodeHtmlEntities = (text) => {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
 function Dashboard({ token, user, onLogout }) {
   const [attendance, setAttendance] = useState([]);
   const [photo, setPhoto] = useState(null);
@@ -55,7 +61,15 @@ function Dashboard({ token, user, onLogout }) {
   });
   const todaysEntries = attendance.filter(a => a.date === today);
 
+  const isWeekend = () => {
+    const phTime = toZonedTime(new Date(), 'Asia/Manila');
+    const day = phTime.getDay();
+    return day === 0 || day === 6; // 0 = Sunday, 6 = Saturday
+  };
+
   const canCheckInNow = () => {
+    if (isWeekend()) return false;
+
     const phTime = toZonedTime(new Date(), 'Asia/Manila');
     const minutes = phTime.getHours() * 60 + phTime.getMinutes();
     const inMorning = minutes >= 5 * 60 && minutes < 12 * 60;
@@ -475,6 +489,11 @@ function Dashboard({ token, user, onLogout }) {
   const checkIn = async () => {
     if (todaysOpen) {
       showAlert('error', 'Already Checked In', 'Please check out your current session before checking in again.');
+      return;
+    }
+
+    if (isWeekend()) {
+      showAlert('error', 'Weekend', 'Time In is not available on weekends (Saturday and Sunday).');
       return;
     }
 
@@ -1508,8 +1527,9 @@ function Dashboard({ token, user, onLogout }) {
             </button>
             <h3 style={{ color: '#ffffff', marginBottom: '1rem' }}>Work Documentation</h3>
             <div
+              className="work-doc-content"
               style={{ color: '#e8eaed', lineHeight: '1.6', marginBottom: '1.5rem' }}
-              dangerouslySetInnerHTML={{ __html: modalDoc }}
+              dangerouslySetInnerHTML={{ __html: decodeHtmlEntities(modalDoc) }}
             />
             <button
               onClick={() => setModalDoc(null)}

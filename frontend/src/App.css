@@ -1303,3 +1303,80 @@ tr:hover {
   scrollbar-color: #4a5568 #001a2b;
 }
 
+
+/* Work Documentation HTML Content Styling */
+.work-doc-content h1,
+.work-doc-content h2,
+.work-doc-content h3,
+.work-doc-content h4,
+.work-doc-content h5,
+.work-doc-content h6 {
+  color: #FF7120;
+  margin: 1rem 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.work-doc-content h1 { font-size: 1.5rem; }
+.work-doc-content h2 { font-size: 1.3rem; }
+.work-doc-content h3 { font-size: 1.1rem; }
+.work-doc-content h4 { font-size: 1rem; }
+
+.work-doc-content p {
+  margin: 0.75rem 0;
+  line-height: 1.6;
+}
+
+.work-doc-content ul,
+.work-doc-content ol {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.work-doc-content li {
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+.work-doc-content pre {
+  background: #001a2b;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.work-doc-content code {
+  background: #001a2b;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-family: 'Courier New', monospace;
+}
+
+.work-doc-content strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.work-doc-content em {
+  font-style: italic;
+}
+
+.work-doc-content hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1.5rem 0;
+}
+
+.work-doc-content blockquote {
+  border-left: 3px solid #FF7120;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #a0a4a8;
+}
+
+
+.work-doc-content {
+  white-space: pre-line;
+}

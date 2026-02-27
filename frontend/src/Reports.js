@@ -7,6 +7,12 @@ import { CardSkeleton } from './components/SkeletonLoader';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+const decodeHtmlEntities = (text) => {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
 function Reports({ token }) {
   const [interns, setInterns] = useState([]);
   const [selectedIntern, setSelectedIntern] = useState(null);
@@ -281,14 +287,15 @@ function Reports({ token }) {
       }
     });
     
-    // Deduct late minutes from total worked minutes and add additional hours
-    const adjustedMinutesWorked = Math.max(0, totalMinutesWorked - totalLateMinutes + additionalMinutes);
-    const totalHours = Math.floor(adjustedMinutesWorked / 60);
-    const totalMinutes = adjustedMinutesWorked % 60;
+    // Deduct late minutes FIRST, then show additional hours separately
+    const baseMinutesWorked = Math.max(0, totalMinutesWorked - totalLateMinutes);
+    const totalHours = Math.floor(baseMinutesWorked / 60);
+    const totalMinutes = baseMinutesWorked % 60;
     const totalLateHours = Math.floor(totalLateMinutes / 60);
+    const totalLateMinutesRemainder = totalLateMinutes % 60;
     const additionalHours = Math.floor(additionalMinutes / 60);
     
-    return { total, onTime, late, totalLateMinutes, totalLateHours, totalHours, totalMinutes, additionalHours };
+    return { total, onTime, late, totalLateMinutes, totalLateHours, totalLateMinutesRemainder, totalHours, totalMinutes, additionalHours };
   };
 
   const handleAdminCheckIn = async () => {
@@ -432,7 +439,10 @@ function Reports({ token }) {
                   </div>
                   <div style={{ background: '#00273C', padding: '0.75rem', borderRadius: '8px', gridColumn: '1 / -1' }}>
                     <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>Total Late</p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: '600', color: '#ff9d5c', margin: 0 }}>{stats.totalLateMinutes}m ({stats.totalLateHours}h)</p>
+                    <p style={{ fontSize: '1.5rem', fontWeight: '600', color: '#ff9d5c', margin: 0 }}>
+                      {stats.totalLateHours}h {stats.totalLateMinutesRemainder}m 
+                      <span style={{ fontSize: '0.85rem', color: '#6b7280', marginLeft: '0.5rem' }}>({stats.totalLateMinutes}m)</span>
+                    </p>
                   </div>
                 </div>
               </div>
@@ -620,7 +630,11 @@ function Reports({ token }) {
                     {record.work_documentation && (
                       <div style={{ background: '#001a2b', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255, 113, 32, 0.2)', marginBottom: '1rem' }}>
                         <p style={{ fontSize: '0.75rem', color: '#FF7120', margin: '0 0 0.5rem 0', fontWeight: '600' }}>Work Documentation</p>
-                        <div style={{ fontSize: '0.9rem', color: '#e8eaed', lineHeight: '1.5', maxHeight: '150px', overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: record.work_documentation }} />
+                        <div 
+                          className="work-doc-content"
+                          style={{ fontSize: '0.9rem', color: '#e8eaed', lineHeight: '1.6', maxHeight: '400px', overflowY: 'auto' }}
+                          dangerouslySetInnerHTML={{ __html: decodeHtmlEntities(record.work_documentation) }}
+                        />
                       </div>
                     )}
 
