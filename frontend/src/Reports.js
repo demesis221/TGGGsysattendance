@@ -4,6 +4,8 @@ import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import Alert from './components/Alert';
 import { CardSkeleton } from './components/SkeletonLoader';
+import PrintAttendance from './PrintAttendance';
+import { Printer } from 'lucide-react';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -24,6 +26,10 @@ function Reports({ token }) {
   const [adminAction, setAdminAction] = useState({ type: '', record: null });
   const [alert, setAlert] = useState(null);
   const [expandedRecords, setExpandedRecords] = useState({});
+  const [showPrintView, setShowPrintView] = useState(false);
+  const [printFilter, setPrintFilter] = useState('all');
+  const [printDate, setPrintDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedInternId, setSelectedInternId] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -138,7 +144,9 @@ function Reports({ token }) {
           total_late_minutes: 0,
           work_documentation: null,
           attachments: [],
-          photo_path: null
+          morning_photo: null,
+          afternoon_photo: null,
+          ot_photo: null
         };
       }
       
@@ -166,9 +174,12 @@ function Reports({ token }) {
       record.total_minutes_worked += minutesWorked;
       record.total_late_minutes += (entry.late_minutes || 0);
       
+      if (session === 'Morning' && entry.photo_path) record.morning_photo = entry.photo_path;
+      if (session === 'Afternoon' && entry.photo_path) record.afternoon_photo = entry.photo_path;
+      if (session === 'Overtime' && entry.photo_path) record.ot_photo = entry.photo_path;
+      
       if (entry.work_documentation) record.work_documentation = entry.work_documentation;
       if (entry.attachments) record.attachments = [...record.attachments, ...entry.attachments];
-      if (entry.photo_path) record.photo_path = entry.photo_path;
     });
     
     setAttendance(Object.values(consolidatedByDate).sort((a, b) => new Date(b.date) - new Date(a.date)));
@@ -342,10 +353,110 @@ function Reports({ token }) {
           onClose={() => setAlert(null)}
         />
       )}
+      
+      {showPrintView ? (
+        <PrintAttendance
+          token={token}
+          internId={selectedIntern.id}
+          internName={selectedIntern.full_name}
+          filterType={printFilter}
+          selectedDate={printDate}
+          onClose={() => setShowPrintView(false)}
+        />
+      ) : (
     <div className="dashboard">
       <div className="welcome">
-        <h2>Intern Reports</h2>
-        <p>View attendance reports for all interns</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h2>Intern Reports</h2>
+            <p>View attendance reports for all interns</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={selectedInternId}
+              onChange={(e) => {
+                setSelectedInternId(e.target.value);
+                if (e.target.value) {
+                  const intern = interns.find(i => i.id === e.target.value);
+                  setSelectedIntern(intern);
+                }
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#00273C',
+                color: '#e8eaed',
+                border: '1px solid rgba(255, 113, 32, 0.3)',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                minWidth: '200px',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select Intern...</option>
+              {interns.map(intern => (
+                <option key={intern.id} value={intern.id}>{intern.full_name}</option>
+              ))}
+            </select>
+            <select
+              value={printFilter}
+              onChange={(e) => setPrintFilter(e.target.value)}
+              disabled={!selectedInternId}
+              style={{
+                padding: '0.5rem',
+                background: '#00273C',
+                color: '#e8eaed',
+                border: '1px solid rgba(255, 113, 32, 0.3)',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                cursor: selectedInternId ? 'pointer' : 'not-allowed',
+                opacity: selectedInternId ? 1 : 0.5
+              }}
+            >
+              <option value="all">All Time</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+            {(printFilter === 'daily' || printFilter === 'weekly') && (
+              <input
+                type="date"
+                value={printDate}
+                onChange={(e) => setPrintDate(e.target.value)}
+                disabled={!selectedInternId}
+                style={{
+                  padding: '0.5rem',
+                  background: '#00273C',
+                  color: '#e8eaed',
+                  border: '1px solid rgba(255, 113, 32, 0.3)',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  cursor: selectedInternId ? 'pointer' : 'not-allowed',
+                  opacity: selectedInternId ? 1 : 0.5
+                }}
+              />
+            )}
+            <button
+              onClick={() => setShowPrintView(true)}
+              disabled={!selectedInternId}
+              style={{
+                background: selectedInternId ? '#28a745' : '#6c757d',
+                border: 'none',
+                color: 'white',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                cursor: selectedInternId ? 'pointer' : 'not-allowed',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                opacity: selectedInternId ? 1 : 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Printer size={16} />
+              Print
+            </button>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
@@ -356,7 +467,9 @@ function Reports({ token }) {
             <p style={{ textAlign: 'center', color: '#6b7280' }}>No interns found. Make sure you're logged in as a coordinator.</p>
           </div>
         ) : (
-          interns.map(intern => {
+          interns
+            .filter(intern => !selectedInternId || intern.id === selectedInternId)
+            .map(intern => {
             const stats = calculateStats(intern.id);
             return (
               <div
@@ -529,24 +642,65 @@ function Reports({ token }) {
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     transition: 'all 0.2s'
                   }}>
-                    {/* Header with toggle and photo */}
+                    {/* Header with toggle and photos */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        {record.photo_path && (
-                          <img
-                            src={record.photo_path}
-                            alt="Check-in"
-                            style={{
-                              width: '50px',
-                              height: '50px',
-                              borderRadius: '8px',
-                              objectFit: 'cover',
-                              border: '2px solid #FF7120',
-                              cursor: 'pointer'
-                            }}
-                            onClick={() => window.open(record.photo_path, '_blank')}
-                          />
-                        )}
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          {record.morning_photo && (
+                            <div style={{ textAlign: 'center' }}>
+                              <img
+                                src={record.morning_photo}
+                                alt="Morning"
+                                style={{
+                                  width: '50px',
+                                  height: '50px',
+                                  borderRadius: '8px',
+                                  objectFit: 'cover',
+                                  border: '2px solid #FF7120',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => window.open(record.morning_photo, '_blank')}
+                              />
+                              <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '2px' }}>AM</div>
+                            </div>
+                          )}
+                          {record.afternoon_photo && (
+                            <div style={{ textAlign: 'center' }}>
+                              <img
+                                src={record.afternoon_photo}
+                                alt="Afternoon"
+                                style={{
+                                  width: '50px',
+                                  height: '50px',
+                                  borderRadius: '8px',
+                                  objectFit: 'cover',
+                                  border: '2px solid #FF7120',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => window.open(record.afternoon_photo, '_blank')}
+                              />
+                              <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '2px' }}>PM</div>
+                            </div>
+                          )}
+                          {record.ot_photo && (
+                            <div style={{ textAlign: 'center' }}>
+                              <img
+                                src={record.ot_photo}
+                                alt="Overtime"
+                                style={{
+                                  width: '50px',
+                                  height: '50px',
+                                  borderRadius: '8px',
+                                  objectFit: 'cover',
+                                  border: '2px solid #FF7120',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => window.open(record.ot_photo, '_blank')}
+                              />
+                              <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '2px' }}>OT</div>
+                            </div>
+                          )}
+                        </div>
                         <h4 style={{ color: '#ffffff', margin: 0, fontSize: '1.1rem' }}>
                           {new Date(record.date).toLocaleDateString('en-US', { 
                             weekday: 'long', 
@@ -768,6 +922,7 @@ function Reports({ token }) {
         </div>
       )}
     </div>
+    )}
     </>
   );
 }

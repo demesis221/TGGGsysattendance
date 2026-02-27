@@ -1,0 +1,160 @@
+.print-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 2rem;
+}
+
+.no-print {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: flex-end;
+}
+
+.close-btn, .print-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.close-btn {
+  background: #6b7280;
+  color: white;
+}
+
+.print-btn {
+  background: #FF7120;
+  color: white;
+}
+
+.print-content {
+  background: white;
+  max-width: 21cm;
+  margin: 0 auto;
+  padding: 1.5cm;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.print-title {
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #000;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.print-info {
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: #000;
+}
+
+.print-info p {
+  margin: 0.3rem 0;
+}
+
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  min-width: 0 !important;
+  max-width: 100%;
+}
+
+.print-table th,
+.print-table td {
+  border: 1px solid #000;
+  padding: 0.3rem 0.1rem;
+  text-align: center;
+  color: #000;
+  min-width: 0 !important;
+}
+
+.print-table th {
+  background: #e0e0e0;
+  font-weight: 600;
+}
+
+.print-table tbody tr:nth-child(even) {
+  background: #f9f9f9;
+}
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-container,
+  .print-container * {
+    visibility: visible;
+  }
+
+  .print-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white;
+    padding: 0;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-content {
+    box-shadow: none;
+    padding: 1cm;
+    margin: 0;
+  }
+
+  .print-title {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .print-info {
+    margin-bottom: 0.5rem;
+    font-size: 0.65rem;
+  }
+
+  .print-info p {
+    margin: 0.15rem 0;
+  }
+
+  .print-table {
+    font-size: 0.55rem;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+
+  .print-table th,
+  .print-table td {
+    padding: 0.25rem 0.05rem;
+    font-size: 0.5rem;
+    min-width: 0 !important;
+  }
+}
