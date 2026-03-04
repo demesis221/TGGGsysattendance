@@ -329,21 +329,23 @@ function Dashboard({ token, user, onLogout }) {
           morning_status: null,
           morning_late_minutes: 0,
           morning_hours_worked: 0,
+          morning_photo: null,
           afternoon_time_in: null,
           afternoon_time_out: null,
           afternoon_status: null,
           afternoon_late_minutes: 0,
           afternoon_hours_worked: 0,
+          afternoon_photo: null,
           ot_time_in: null,
           ot_time_out: null,
           ot_status: null,
           ot_late_minutes: 0,
           ot_hours_worked: 0,
+          ot_photo: null,
           total_late_minutes: 0,
           total_hours_worked: 0,
           work_documentation: null,
           attachments: [],
-          photo_path: null,
           allSessions: []
         };
       }
@@ -359,18 +361,21 @@ function Dashboard({ token, user, onLogout }) {
         consolidatedByDate[key].morning_status = entry.status;
         consolidatedByDate[key].morning_late_minutes = lateMinutes;
         consolidatedByDate[key].morning_hours_worked = hoursWorked;
+        if (entry.photo_path) consolidatedByDate[key].morning_photo = entry.photo_path;
       } else if (entry.session === 'Afternoon') {
         consolidatedByDate[key].afternoon_time_in = entry.time_in;
         consolidatedByDate[key].afternoon_time_out = entry.time_out;
         consolidatedByDate[key].afternoon_status = entry.status;
         consolidatedByDate[key].afternoon_late_minutes = lateMinutes;
         consolidatedByDate[key].afternoon_hours_worked = hoursWorked;
+        if (entry.photo_path) consolidatedByDate[key].afternoon_photo = entry.photo_path;
       } else if (entry.session === 'Overtime') {
         consolidatedByDate[key].ot_time_in = entry.time_in;
         consolidatedByDate[key].ot_time_out = entry.time_out;
         consolidatedByDate[key].ot_status = entry.status;
         consolidatedByDate[key].ot_late_minutes = lateMinutes;
         consolidatedByDate[key].ot_hours_worked = hoursWorked;
+        if (entry.photo_path) consolidatedByDate[key].ot_photo = entry.photo_path;
       }
       
       consolidatedByDate[key].overall_status = overallStatus;
@@ -382,9 +387,6 @@ function Dashboard({ token, user, onLogout }) {
       }
       if (entry.attachments && Array.isArray(entry.attachments)) {
         consolidatedByDate[key].attachments = [...new Set([...consolidatedByDate[key].attachments, ...entry.attachments])];
-      }
-      if (entry.photo_path) {
-        consolidatedByDate[key].photo_path = entry.photo_path;
       }
       consolidatedByDate[key].allSessions.push(entry);
     });
@@ -1295,7 +1297,7 @@ function Dashboard({ token, user, onLogout }) {
                       <th>Late (min)</th>
                       <th>Work Done</th>
                       <th>Attachments</th>
-                      <th>Photo</th>
+                      <th>Photos</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1414,15 +1416,45 @@ function Dashboard({ token, user, onLogout }) {
                             ) : '-'}
                           </td>
                           <td>
-                            {a.photo_path && (
-                              <img
-                                src={a.photo_path}
-                                alt="Attendance"
-                                className="photo-thumb"
-                                onClick={() => setFullscreenPhoto(a.photo_path)}
-                                style={{ cursor: 'pointer' }}
-                              />
-                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {a.morning_photo && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>AM:</span>
+                                  <img
+                                    src={a.morning_photo}
+                                    alt="Morning"
+                                    className="photo-thumb"
+                                    onClick={() => setFullscreenPhoto(a.morning_photo)}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                </div>
+                              )}
+                              {a.afternoon_photo && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>PM:</span>
+                                  <img
+                                    src={a.afternoon_photo}
+                                    alt="Afternoon"
+                                    className="photo-thumb"
+                                    onClick={() => setFullscreenPhoto(a.afternoon_photo)}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                </div>
+                              )}
+                              {a.ot_photo && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>OT:</span>
+                                  <img
+                                    src={a.ot_photo}
+                                    alt="Overtime"
+                                    className="photo-thumb"
+                                    onClick={() => setFullscreenPhoto(a.ot_photo)}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                </div>
+                              )}
+                              {!a.morning_photo && !a.afternoon_photo && !a.ot_photo && '-'}
+                            </div>
                           </td>
                         </tr>
                         );

@@ -50,8 +50,8 @@ function App() {
     if (token) {
       // Validate token immediately on mount
       validateAndFetchProfile();
-      // Check token validity periodically
-      const interval = setInterval(checkTokenValidity, 60000); // Check every minute
+      // Check token validity less frequently to avoid constant logouts
+      const interval = setInterval(checkTokenValidity, 5 * 60 * 1000); // Check every 5 minutes instead of 1
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,8 +61,11 @@ function App() {
     try {
       await fetchUserProfile();
     } catch (err) {
-      console.error('Token validation failed:', err);
-      handleLogout();
+      // Only log out if it's a definite auth error, not network issues
+      if (err.response?.status === 401) {
+        console.error('Token validation failed:', err);
+        handleLogout();
+      }
     }
   };
 
@@ -89,11 +92,11 @@ function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
     } catch (err) {
-      if (err.response?.status === 401) {
-        const rememberMe = localStorage.getItem('rememberMe');
-        if (!rememberMe) {
-          handleLogout();
-        }
+      // Only log out on 401 if not using "Remember Me"
+      // Don't log out on network errors or other issues
+      if (err.response?.status === 401 && err.response?.data?.error === 'Auth session missing!') {
+        console.warn('Token expired, logging out');
+        handleLogout();
       }
     }
   };

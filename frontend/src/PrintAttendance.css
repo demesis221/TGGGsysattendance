@@ -6,9 +6,52 @@
 
 .no-print {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   margin-bottom: 2rem;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.month-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.month-filter label {
+  color: #00273C;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.month-filter input {
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  border: 2px solid #e5e7eb;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #00273C;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.month-filter input:hover {
+  border-color: #FF7120;
+}
+
+.month-filter input:focus {
+  outline: none;
+  border-color: #FF7120;
+  box-shadow: 0 0 0 3px rgba(255, 113, 32, 0.1);
+}
+
+.button-group {
+  display: flex;
+  gap: 0.75rem;
 }
 
 .close-btn, .print-btn {
@@ -33,59 +76,143 @@
   color: white;
 }
 
+.close-btn:hover {
+  background: #4b5563;
+}
+
+.print-btn:hover {
+  background: #e5641c;
+}
+
 .print-content {
   background: white;
   max-width: 21cm;
-  margin: 0 auto;
-  padding: 1.5cm;
+  width: 21cm;
+  margin: 0 auto 2rem auto;
+  padding: 0.3cm;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
+  overflow: visible;
+  position: relative;
+  padding-bottom: 15cm;
+}
+
+.print-content:last-child {
+  margin-bottom: 0;
+}
+
+.month-section:nth-child(3) {
+  position: absolute;
+  top: 14.85cm;
+  left: 0.3cm;
+  right: 0.3cm;
 }
 
 .print-title {
   text-align: center;
-  font-size: 1.2rem;
+  font-size: 0.9rem;
   font-weight: bold;
   color: #000;
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
-.print-info {
-  margin-bottom: 1rem;
-  font-size: 0.85rem;
-  color: #000;
-}
-
-.print-info p {
-  margin: 0.3rem 0;
-}
-
-.print-table {
-  width: 100%;
+/* SUMMARY TABLE STYLES */
+.summary-table {
+  width: 95%;
   border-collapse: collapse;
-  font-size: 0.7rem;
+  margin: 0 auto 0.5rem auto;
+  font-size: 0.5rem;
+  table-layout: fixed;
   min-width: 0 !important;
-  max-width: 100%;
+  flex-shrink: 0;
 }
 
-.print-table th,
-.print-table td {
+.summary-table td {
   border: 1px solid #000;
-  padding: 0.3rem 0.1rem;
+  padding: 0.1rem 0.15rem;
+  color: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.5rem;
+}
+
+.summary-table .label-cell {
+  background: #e8e8e8;
+  font-weight: 600;
+  width: 6%;
+}
+
+.summary-table .group-header {
+  background: #d0d0d0;
+  font-weight: 700;
+  text-align: center;
+  padding: 0.15rem;
+  font-size: 0.45rem;
+}
+
+.summary-table .sub-header {
+  background: #e8e8e8;
+  font-weight: 600;
+  text-align: center;
+  font-size: 0.4rem;
+  padding: 0.1rem;
+}
+
+.summary-table .summary-data td {
+  text-align: center;
+  font-weight: 600;
+  background: #f9f9f9;
+  font-size: 0.45rem;
+}
+
+/* DETAIL TABLE STYLES */
+.detail-table {
+  width: 95%;
+  border-collapse: collapse;
+  margin: 0 auto;
+  font-size: 0.5rem;
+  table-layout: fixed;
+  min-width: 0 !important;
+  flex: 1;
+  overflow: hidden;
+}
+
+.detail-table th,
+.detail-table td {
+  border: 1px solid #000;
+  padding: 0.1rem 0.08rem;
   text-align: center;
   color: #000;
-  min-width: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.5rem;
 }
 
-.print-table th {
-  background: #e0e0e0;
-  font-weight: 600;
+.detail-table th {
+  background: #d0d0d0;
+  font-weight: 700;
+  font-size: 0.45rem;
 }
 
-.print-table tbody tr:nth-child(even) {
+.detail-table .section-title {
+  background: #b0b0b0;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.3rem;
+}
+
+.detail-table tbody tr:nth-child(even) {
   background: #f9f9f9;
+}
+
+.missed {
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 0.45rem;
 }
 @media print {
   @page {
@@ -94,12 +221,15 @@
   }
 
   * {
-    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   html, body {
     margin: 0 !important;
     padding: 0 !important;
+    width: 100%;
+    height: auto;
   }
 
   body * {
@@ -118,6 +248,7 @@
     width: 100%;
     background: white;
     padding: 0;
+    margin: 0;
   }
 
   .no-print {
@@ -126,35 +257,24 @@
 
   .print-content {
     box-shadow: none;
-    padding: 1cm;
+    padding: 0.25cm 0.3cm;
+    padding-bottom: 0.25cm;
     margin: 0;
+    width: 21cm;
+    height: auto;
+    max-height: 29.7cm;
+    position: relative;
+    page-break-after: always;
   }
 
-  .print-title {
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
+  .print-content:last-child {
+    page-break-after: auto;
   }
 
-  .print-info {
-    margin-bottom: 0.5rem;
-    font-size: 0.65rem;
-  }
-
-  .print-info p {
-    margin: 0.15rem 0;
-  }
-
-  .print-table {
-    font-size: 0.55rem;
-    width: 100%;
-    min-width: 0 !important;
-    max-width: 100%;
-  }
-
-  .print-table th,
-  .print-table td {
-    padding: 0.25rem 0.05rem;
-    font-size: 0.5rem;
-    min-width: 0 !important;
+  .month-section:nth-child(3) {
+    position: absolute;
+    top: 14.85cm;
+    left: 0.3cm;
+    right: 0.3cm;
   }
 }
