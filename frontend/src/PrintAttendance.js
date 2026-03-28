@@ -411,8 +411,8 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
                         </tr>
                         <tr>
                           <th rowSpan="2">Date/Week</th>
-                          <th colSpan="2">Time1</th>
-                          <th colSpan="2">Time2</th>
+                          <th colSpan="2">Morning</th>
+                          <th colSpan="2">Afternoon</th>
                           <th colSpan="2">OT</th>
                         </tr>
                         <tr>
