@@ -431,7 +431,7 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
                           <tr key={record.date}>
                             <td>{formatDateWithDay(record.date)}</td>
                             <td style={{ fontSize: '0.7rem', fontWeight: '600' }}>
-                              {record.work_mode === 'online' ? '💻' : '🏢'}
+                              {record.work_mode === 'online' ? 'Online' : 'Onsite'}
                             </td>
                             <td>{record.morning_time_in ? formatTime(record.morning_time_in) : <span className="missed">Missed</span>}</td>
                             <td>{record.morning_time_out ? formatTime(record.morning_time_out) : <span className="missed">Missed</span>}</td>
