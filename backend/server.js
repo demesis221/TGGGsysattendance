@@ -358,7 +358,7 @@ app.post('/api/auth/google', async (req, res) => {
 
 app.post('/api/attendance/checkin', auth, upload.single('photo'), async (req, res) => {
   try {
-    const { time_in } = req.body;
+    const { time_in, work_mode } = req.body;
     // Use Philippines timezone for date
     const phTime = toZonedTime(new Date(), 'Asia/Manila');
     const date = format(phTime, 'yyyy-MM-dd');
@@ -474,7 +474,8 @@ app.post('/api/attendance/checkin', auth, upload.single('photo'), async (req, re
         time_in,
         status,
         photo_path: photoUrl,
-        late_minutes: lateMinutes
+        late_minutes: lateMinutes,
+        work_mode: work_mode || 'onsite'
       })
       .select()
       .single();

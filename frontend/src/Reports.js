@@ -134,6 +134,7 @@ function Reports({ token }) {
         consolidatedByDate[entry.date] = {
           date: entry.date,
           user_id: entry.user_id,
+          work_mode: entry.work_mode || 'onsite',
           morning_time_in: null,
           morning_time_out: null,
           afternoon_time_in: null,
@@ -701,14 +702,31 @@ function Reports({ token }) {
                             </div>
                           )}
                         </div>
-                        <h4 style={{ color: '#ffffff', margin: 0, fontSize: '1.1rem' }}>
-                          {new Date(record.date).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </h4>
+                        <div>
+                          <h4 style={{ color: '#ffffff', margin: 0, fontSize: '1.1rem' }}>
+                            {new Date(record.date).toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })}
+                          </h4>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            marginTop: '4px',
+                            background: record.work_mode === 'online' ? 'rgba(100, 150, 255, 0.1)' : 'rgba(255, 113, 32, 0.1)',
+                            color: record.work_mode === 'online' ? '#6496ff' : '#FF7120',
+                            border: `1px solid ${record.work_mode === 'online' ? 'rgba(100, 150, 255, 0.3)' : 'rgba(255, 113, 32, 0.3)'}`
+                          }}>
+                            {record.work_mode === 'online' ? '💻 Online' : '🏢 Onsite'}
+                          </span>
+                        </div>
                       </div>
                       <button
                         onClick={() => setExpandedRecords(prev => ({ ...prev, [record.date]: !prev[record.date] }))}

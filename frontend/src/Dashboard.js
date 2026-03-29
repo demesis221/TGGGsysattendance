@@ -6,6 +6,7 @@ import Alert from './components/Alert';
 import { TableSkeleton, CardSkeleton } from './components/SkeletonLoader';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { Monitor, Building2 } from 'lucide-react';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -32,6 +33,7 @@ function Dashboard({ token, user, onLogout }) {
   const itemsPerPage = 10;
   const [filterDate, setFilterDate] = useState('');
   const [approvedOvertimes, setApprovedOvertimes] = useState([]);
+  const [attendanceType, setAttendanceType] = useState('onsite');
 
   // Coordinator management states
   const [showLeaderPanel, setShowLeaderPanel] = useState(false);
@@ -324,6 +326,7 @@ function Dashboard({ token, user, onLogout }) {
           date: entry.date,
           user_id: entry.user_id,
           full_name: entry.full_name,
+          work_mode: entry.work_mode || 'onsite',
           morning_time_in: null,
           morning_time_out: null,
           morning_status: null,
@@ -519,6 +522,7 @@ function Dashboard({ token, user, onLogout }) {
       const timeIn = getPhilippinesTime();
       const formData = new FormData();
       formData.append('time_in', timeIn);
+      formData.append('work_mode', attendanceType);
 
       const compressedPhoto = await compressImage(photo);
       formData.append('photo', compressedPhoto, 'photo.jpg');
@@ -988,6 +992,29 @@ function Dashboard({ token, user, onLogout }) {
                 <h3>Attendance</h3>
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: '0.9rem' }}>
+                    Attendance Type
+                  </label>
+                  <select
+                    value={attendanceType}
+                    onChange={(e) => setAttendanceType(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      background: '#00273C',
+                      color: '#e8eaed',
+                      border: '1px solid rgba(255, 113, 32, 0.3)',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      marginBottom: '1rem'
+                    }}
+                  >
+                    <option value="onsite">Onsite</option>
+                    <option value="online">Online</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: '0.9rem' }}>
                     Upload Photo (Required)
                   </label>
                   <div style={{ position: 'relative' }}>
@@ -1057,16 +1084,17 @@ function Dashboard({ token, user, onLogout }) {
                     disabled={
                       buttonLoading ||
                       !canCheckInNow() ||
-                      todaysEntries.length >= 2
+                      todaysEntries.length >= 2 ||
+                      isWeekend()
                     }
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: '10px',
-                      opacity: !canCheckInNow() ? 0.6 : 1,
-                      cursor: !canCheckInNow() ? 'not-allowed' : 'pointer',
-                      pointerEvents: (!canCheckInNow() || todaysOpen) ? 'none' : 'auto'
+                      opacity: (!canCheckInNow() || isWeekend()) ? 0.6 : 1,
+                      cursor: (!canCheckInNow() || isWeekend()) ? 'not-allowed' : 'pointer',
+                      pointerEvents: (!canCheckInNow() || todaysOpen || isWeekend()) ? 'none' : 'auto'
                     }}
                   >
                     {buttonLoading ? (
@@ -1085,7 +1113,9 @@ function Dashboard({ token, user, onLogout }) {
                   </button>
                   {!canCheckInNow() && (
                     <div style={{ color: '#a0a4a8', fontSize: '0.9rem' }}>
-                      Time In available 5AM-12PM (counted 8AM-12PM), 12:40PM-5PM, and 6:50PM-10PM (approved overtime only).
+                      {isWeekend() 
+                        ? 'Time In is not available on weekends (Saturday and Sunday).'
+                        : 'Time In available 5AM-12PM (counted 8AM-12PM), 12:40PM-5PM, and 6:50PM-10PM (approved overtime only).'}
                     </div>
                   )}
                 </div>
@@ -1287,6 +1317,7 @@ function Dashboard({ token, user, onLogout }) {
                     <tr>
                       {user.role === 'coordinator' && <th>Intern Name</th>}
                       <th>Date</th>
+                      <th>Work Mode</th>
                       <th>AM In</th>
                       <th>AM Out</th>
                       <th>PM In</th>
@@ -1310,6 +1341,32 @@ function Dashboard({ token, user, onLogout }) {
                         <tr key={(a.id || a.date) + (a.user_id || '')}>
                           {user.role === 'coordinator' && <td>{a.full_name}</td>}
                           <td>{a.date}</td>
+                          <td>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
+                              background: a.work_mode === 'online' ? 'rgba(100, 150, 255, 0.1)' : 'rgba(255, 113, 32, 0.1)',
+                              color: a.work_mode === 'online' ? '#6496ff' : '#FF7120',
+                              border: `1px solid ${a.work_mode === 'online' ? 'rgba(100, 150, 255, 0.3)' : 'rgba(255, 113, 32, 0.3)'}`
+                            }}>
+                              {a.work_mode === 'online' ? (
+                                <>
+                                  <Monitor size={14} />
+                                  Online
+                                </>
+                              ) : (
+                                <>
+                                  <Building2 size={14} />
+                                  Onsite
+                                </>
+                              )}
+                            </span>
+                          </td>
                           <td>{formatTime(a.morning_time_in) || '-'}</td>
                           <td>{capTimeOut(a.morning_time_out, 'Morning') || '-'}</td>
                           <td>{formatTime(a.afternoon_time_in) || '-'}</td>

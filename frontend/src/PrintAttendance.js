@@ -124,6 +124,7 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
         if (!consolidatedByDate[entry.date]) {
           consolidatedByDate[entry.date] = {
             date: entry.date,
+            work_mode: entry.work_mode || 'onsite',
             morning_time_in: null,
             morning_time_out: null,
             afternoon_time_in: null,
@@ -407,10 +408,11 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
                     <table className="detail-table">
                       <thead>
                         <tr>
-                          <th colSpan="7" className="section-title">All Report</th>
+                          <th colSpan="8" className="section-title">All Report</th>
                         </tr>
                         <tr>
                           <th rowSpan="2">Date/Week</th>
+                          <th rowSpan="2">Mode</th>
                           <th colSpan="2">Morning</th>
                           <th colSpan="2">Afternoon</th>
                           <th colSpan="2">OT</th>
@@ -428,6 +430,9 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
                         {monthAttendance.map(record => (
                           <tr key={record.date}>
                             <td>{formatDateWithDay(record.date)}</td>
+                            <td style={{ fontSize: '0.7rem', fontWeight: '600' }}>
+                              {record.work_mode === 'online' ? '💻' : '🏢'}
+                            </td>
                             <td>{record.morning_time_in ? formatTime(record.morning_time_in) : <span className="missed">Missed</span>}</td>
                             <td>{record.morning_time_out ? formatTime(record.morning_time_out) : <span className="missed">Missed</span>}</td>
                             <td>{record.afternoon_time_in ? formatTime(record.afternoon_time_in) : <span className="missed">Missed</span>}</td>
