@@ -554,8 +554,9 @@ function Dashboard({ token, user, onLogout }) {
     
     // For interns with consolidated data, find the actual open session ID
     let sessionId = id;
+    let openSession = null;
     if (!sessionId && todaysOpen?.allSessions) {
-      const openSession = todaysOpen.allSessions.find(s => !s.time_out);
+      openSession = todaysOpen.allSessions.find(s => !s.time_out);
       sessionId = openSession?.id;
     }
     
@@ -565,14 +566,19 @@ function Dashboard({ token, user, onLogout }) {
     }
     
     // Find the session to determine if documentation is required
-    const session = todaysOpen;
-    const isMorning = session && parseMinutes(session.time_in) < 12 * 60;
+    const session = openSession || todaysOpen;
+    const isMorning = session?.session
+      ? session.session === 'Morning'
+      : parseMinutes(session?.time_in) < 12 * 60;
     
     // Only require documentation for afternoon/overtime sessions
     if (!isMorning) {
       const plainText = workDoc.replace(/<[^>]*>/g, '').trim();
-      if (!plainText) {
-        showAlert('error', 'Work Documentation Required', 'Please describe your work before checking out!');
+      const hasTextDocumentation = plainText.length > 0;
+      const hasAttachmentDocumentation = attachments.length > 0;
+
+      if (!hasTextDocumentation && !hasAttachmentDocumentation) {
+        showAlert('error', 'Work Documentation Required', 'Please provide text documentation or at least one attachment before checking out.');
         return;
       }
     }
