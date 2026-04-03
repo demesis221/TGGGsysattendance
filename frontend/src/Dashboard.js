@@ -555,9 +555,14 @@ function Dashboard({ token, user, onLogout }) {
     // For interns with consolidated data, find the actual open session ID
     let sessionId = id;
     let openSession = null;
-    if (!sessionId && todaysOpen?.allSessions) {
+    if (todaysOpen?.allSessions) {
       openSession = todaysOpen.allSessions.find(s => !s.time_out);
-      sessionId = openSession?.id;
+      if (!openSession && sessionId) {
+        openSession = todaysOpen.allSessions.find(s => s.id === sessionId);
+      }
+      if (!sessionId) {
+        sessionId = openSession?.id;
+      }
     }
     
     if (!sessionId) {
@@ -567,9 +572,10 @@ function Dashboard({ token, user, onLogout }) {
     
     // Find the session to determine if documentation is required
     const session = openSession || todaysOpen;
+    const sessionTimeInMinutes = session?.time_in ? parseMinutes(session.time_in) : null;
     const isMorning = session?.session
       ? session.session === 'Morning'
-      : parseMinutes(session?.time_in) < 12 * 60;
+      : sessionTimeInMinutes !== null && sessionTimeInMinutes < 12 * 60;
     
     // Only require documentation for afternoon/overtime sessions
     if (!isMorning) {
