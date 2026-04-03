@@ -527,6 +527,15 @@ app.put('/api/attendance/checkout/:id', auth, uploadDocs.array('attachments', 5)
     const checkInMinutes = hIn * 60 + mIn;
     const checkOutMinutes = hOut * 60 + mOut;
 
+    // For afternoon/OT sessions, require either text documentation or at least one attachment.
+    const isMorningSession = checkInMinutes < 12 * 60;
+    const plainDocumentation = (work_documentation || '').replace(/<[^>]*>/g, '').trim();
+    const hasTextDocumentation = plainDocumentation.length > 0;
+    const hasAttachmentDocumentation = Array.isArray(req.files) && req.files.length > 0;
+    if (!isMorningSession && !hasTextDocumentation && !hasAttachmentDocumentation) {
+      return res.status(400).json({ error: 'Please provide text documentation or at least one attachment before checking out.' });
+    }
+
     let standardCheckoutMinutes;
     let baselineStartMinutes;
 

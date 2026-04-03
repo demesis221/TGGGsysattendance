@@ -612,6 +612,8 @@ function Dashboard({ token, user, onLogout }) {
       fetchAttendance();
       setWorkDoc('');
       setAttachments([]);
+    } catch (error) {
+      showAlert('error', 'Checkout Failed', error.response?.data?.error || 'Unable to check out. Please try again.');
     } finally {
       setButtonLoading(false);
     }
