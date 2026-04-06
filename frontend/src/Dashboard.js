@@ -33,7 +33,7 @@ function Dashboard({ token, user, onLogout }) {
   const itemsPerPage = 10;
   const [filterDate, setFilterDate] = useState('');
   const [approvedOvertimes, setApprovedOvertimes] = useState([]);
-  const [attendanceType, setAttendanceType] = useState('onsite');
+  const [attendanceType, setAttendanceType] = useState('online');
 
   // Coordinator management states
   const [showLeaderPanel, setShowLeaderPanel] = useState(false);
