@@ -313,9 +313,10 @@ function Reports({ token }) {
   const handleAdminCheckIn = async () => {
     const phTime = toZonedTime(new Date(), 'Asia/Manila');
     const timeIn = format(phTime, 'hh:mm a');
+    const date = format(phTime, 'yyyy-MM-dd');
     try {
       await axios.post(`${API}/admin/checkin/${selectedIntern.id}`, 
-        { time_in: timeIn },
+        { time_in: timeIn, date },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setAlert({ type: 'success', title: 'Success', message: 'Check-in successful' });

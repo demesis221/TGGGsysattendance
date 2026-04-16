@@ -2371,7 +2371,9 @@ app.post('/api/admin/checkin/:userId', auth, async (req, res) => {
     }
 
     const { time_in, date } = req.body;
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    // Use Philippines date to match regular check-in behavior and avoid UTC date drift.
+    const phTime = toZonedTime(new Date(), 'Asia/Manila');
+    const targetDate = date || format(phTime, 'yyyy-MM-dd');
 
     const { data, error } = await supabaseAdmin
       .from('attendance')
