@@ -2370,7 +2370,7 @@ app.post('/api/admin/checkin/:userId', auth, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const { time_in, date } = req.body;
+    const { time_in, date, work_mode } = req.body;
     // Use Philippines date to match regular check-in behavior and avoid UTC date drift.
     const phTime = toZonedTime(new Date(), 'Asia/Manila');
     const targetDate = date || format(phTime, 'yyyy-MM-dd');
@@ -2381,6 +2381,7 @@ app.post('/api/admin/checkin/:userId', auth, async (req, res) => {
         user_id: req.params.userId,
         date: targetDate,
         time_in,
+        work_mode: work_mode || 'onsite',
         status: 'On-Time',
         late_minutes: 0
       })

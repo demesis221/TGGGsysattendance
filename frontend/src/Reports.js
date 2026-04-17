@@ -30,6 +30,7 @@ function Reports({ token }) {
   const [printFilter, setPrintFilter] = useState('all');
   const [printDate, setPrintDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedInternId, setSelectedInternId] = useState('');
+  const [adminWorkMode, setAdminWorkMode] = useState('onsite');
 
   useEffect(() => {
     const loadData = async () => {
@@ -316,7 +317,7 @@ function Reports({ token }) {
     const date = format(phTime, 'yyyy-MM-dd');
     try {
       await axios.post(`${API}/admin/checkin/${selectedIntern.id}`, 
-        { time_in: timeIn, date },
+        { time_in: timeIn, date, work_mode: adminWorkMode },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setAlert({ type: 'success', title: 'Success', message: 'Check-in successful' });
@@ -600,6 +601,7 @@ function Reports({ token }) {
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 <button 
                   onClick={() => {
+                    setAdminWorkMode('onsite');
                     setAdminAction({ type: 'checkin', record: null });
                     setShowAdminModal(true);
                   }}
@@ -905,6 +907,29 @@ function Reports({ token }) {
                 : `Check out ${selectedIntern?.full_name} for this session?`
               }
             </p>
+            {adminAction.type === 'checkin' && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', color: '#a0a4a8', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                  Mode Option
+                </label>
+                <select
+                  value={adminWorkMode}
+                  onChange={(e) => setAdminWorkMode(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem 0.75rem',
+                    background: '#00273C',
+                    color: '#e8eaed',
+                    border: '1px solid rgba(255, 113, 32, 0.3)',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  <option value="onsite">Onsite</option>
+                  <option value="online">Online</option>
+                </select>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button
                 onClick={() => adminAction.type === 'checkin' ? handleAdminCheckIn() : handleAdminCheckOut(adminAction.record.id)}
