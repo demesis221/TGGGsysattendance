@@ -1,450 +1,638 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import './PrintAttendance.css';
 import { Printer, X } from 'lucide-react';
+import './PrintAttendance.css';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+const DEFAULT_OFFICIAL_HOURS = {
+  amIn: '08:00',
+  amOut: '12:00',
+  pmIn: '13:00',
+  pmOut: '17:00'
+};
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+];
+
+const DAY_LABELS = {
+  saturday: 'Saturday',
+  sunday: 'Sunday'
+};
+
+const toMonthKey = (dateObj) => {
+  return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const getMonthKeyFromDate = (dateStr) => {
+  if (!dateStr) return '';
+
+  const isoMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}`;
+  }
+
+  const parsed = new Date(dateStr);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return toMonthKey(parsed);
+};
+
+const getDayFromDate = (dateStr) => {
+  if (!dateStr) return 0;
+
+  const isoMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return parseInt(isoMatch[3], 10);
+  }
+
+  const parsed = new Date(dateStr);
+  if (Number.isNaN(parsed.getTime())) return 0;
+  return parsed.getDate();
+};
+
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr) return null;
+
+  const value = String(timeStr).trim().toUpperCase();
+  if (!value) return null;
+
+  const amPmMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (amPmMatch) {
+    let hour = parseInt(amPmMatch[1], 10);
+    const minute = parseInt(amPmMatch[2], 10);
+    const period = amPmMatch[3].toUpperCase();
+
+    if (minute > 59 || hour > 12 || hour < 1) return null;
+    if (period === 'PM' && hour !== 12) hour += 12;
+    if (period === 'AM' && hour === 12) hour = 0;
+
+    return (hour * 60) + minute;
+  }
+
+  const twentyFourMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (twentyFourMatch) {
+    const hour = parseInt(twentyFourMatch[1], 10);
+    const minute = parseInt(twentyFourMatch[2], 10);
+
+    if (hour > 23 || minute > 59) return null;
+    return (hour * 60) + minute;
+  }
+
+  return null;
+};
+
+const toTimeInput = (timeStr) => {
+  const minutes = parseTimeToMinutes(timeStr);
+  if (minutes === null) return '';
+
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+};
+
+const formatTimeForPrint = (timeValue) => {
+  const minutes = parseTimeToMinutes(timeValue);
+  if (minutes === null) return '';
+
+  const hour24 = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const ampm = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+
+  return `${hour12}:${String(minute).padStart(2, '0')} ${ampm}`;
+};
+
+const determineSession = (timeIn) => {
+  const minutes = parseTimeToMinutes(timeIn);
+  if (minutes === null) return null;
+
+  if (minutes < 12 * 60) return 'Morning';
+  if (minutes < 18 * 60) return 'Afternoon';
+  return 'Overtime';
+};
+
+const getMonthsInRange = (startMonth, endMonth) => {
+  if (!startMonth || !endMonth) return [];
+
+  const start = new Date(`${startMonth}-01T00:00:00`);
+  const end = new Date(`${endMonth}-01T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return [];
+  }
+
+  const months = [];
+  const cursor = new Date(start);
+
+  while (cursor <= end) {
+    months.push(toMonthKey(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return months;
+};
+
+const createEmptyMonthData = (monthKey) => {
+  const [yearText, monthText] = monthKey.split('-');
+  const year = parseInt(yearText, 10);
+  const month = parseInt(monthText, 10);
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  const rows = Array.from({ length: 31 }, (_, index) => {
+    const day = index + 1;
+
+    if (day > daysInMonth) {
+      return {
+        day,
+        dayType: 'invalid',
+        dayLabel: '',
+        amIn: '',
+        amOut: '',
+        pmIn: '',
+        pmOut: ''
+      };
+    }
+
+    const weekday = new Date(year, month - 1, day).getDay();
+    let dayType = 'weekday';
+    if (weekday === 6) dayType = 'saturday';
+    if (weekday === 0) dayType = 'sunday';
+
+    return {
+      day,
+      dayType,
+      dayLabel: DAY_LABELS[dayType] || '',
+      amIn: '',
+      amOut: '',
+      pmIn: '',
+      pmOut: ''
+    };
+  });
+
+  return {
+    monthKey,
+    daysInMonth,
+    rows
+  };
+};
+
+const chooseTime = (existingTime, candidateTime, preference) => {
+  if (!candidateTime) return existingTime || '';
+  if (!existingTime) return candidateTime;
+
+  const existingMinutes = parseTimeToMinutes(existingTime);
+  const candidateMinutes = parseTimeToMinutes(candidateTime);
+
+  if (existingMinutes === null || candidateMinutes === null) return existingTime;
+
+  if (preference === 'min') {
+    return candidateMinutes < existingMinutes ? candidateTime : existingTime;
+  }
+
+  return candidateMinutes > existingMinutes ? candidateTime : existingTime;
+};
+
+const calculateSessionMinutesWithinOfficialHours = (inTime, outTime, officialIn, officialOut) => {
+  const inMinutes = parseTimeToMinutes(inTime);
+  const outMinutes = parseTimeToMinutes(outTime);
+  const officialInMinutes = parseTimeToMinutes(officialIn);
+  const officialOutMinutes = parseTimeToMinutes(officialOut);
+
+  if (inMinutes === null || outMinutes === null) return 0;
+
+  let effectiveStart = inMinutes;
+  let effectiveEnd = outMinutes;
+
+  if (officialInMinutes !== null) {
+    effectiveStart = Math.max(effectiveStart, officialInMinutes);
+  }
+  if (officialOutMinutes !== null) {
+    effectiveEnd = Math.min(effectiveEnd, officialOutMinutes);
+  }
+
+  const diff = effectiveEnd - effectiveStart;
+  return diff > 0 ? diff : 0;
+};
+
+const calculateDailyMinutes = (row, officialHours) => {
+  return calculateSessionMinutesWithinOfficialHours(
+    row.amIn,
+    row.amOut,
+    officialHours.amIn,
+    officialHours.amOut
+  ) + calculateSessionMinutesWithinOfficialHours(
+    row.pmIn,
+    row.pmOut,
+    officialHours.pmIn,
+    officialHours.pmOut
+  );
+};
+
+const calculateDailyLateMinutes = (row, officialHours) => {
+  const officialAmIn = parseTimeToMinutes(officialHours.amIn);
+  const officialPmIn = parseTimeToMinutes(officialHours.pmIn);
+  const amIn = parseTimeToMinutes(row.amIn);
+  const pmIn = parseTimeToMinutes(row.pmIn);
+
+  let totalLate = 0;
+
+  if (officialAmIn !== null && amIn !== null && amIn > officialAmIn) {
+    totalLate += amIn - officialAmIn;
+  }
+  if (officialPmIn !== null && pmIn !== null && pmIn > officialPmIn) {
+    totalLate += pmIn - officialPmIn;
+  }
+
+  return totalLate;
+};
+
+const formatMonthLabel = (monthKey) => {
+  const [yearText, monthText] = monthKey.split('-');
+  const monthIndex = parseInt(monthText, 10) - 1;
+  return `${MONTH_NAMES[monthIndex] || monthText} ${yearText}`;
+};
+
 function PrintAttendance({ token, internId, internName, filterType, selectedDate, onClose }) {
-  const [attendance, setAttendance] = useState([]);
+  const savedTitleRef = useRef('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [startMonth, setStartMonth] = useState('');
   const [endMonth, setEndMonth] = useState('');
+  const [officialHours] = useState(DEFAULT_OFFICIAL_HOURS);
+  const [dtrData, setDtrData] = useState({});
 
   useEffect(() => {
-    // Set default to current month
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const today = new Date();
+    const currentMonth = toMonthKey(today);
+
+    if ((filterType === 'daily' || filterType === 'weekly') && selectedDate) {
+      const selectedMonth = selectedDate.slice(0, 7);
+      setStartMonth(selectedMonth || currentMonth);
+      setEndMonth(selectedMonth || currentMonth);
+      return;
+    }
+
     setStartMonth(currentMonth);
     setEndMonth(currentMonth);
-  }, []);
+  }, [filterType, selectedDate]);
 
   useEffect(() => {
-    if (startMonth && endMonth) {
-      fetchAttendance();
-    }
-    // eslint-disable-next-line
-  }, [internId, startMonth, endMonth]);
+    const handleBeforePrint = () => {
+      savedTitleRef.current = document.title;
+      document.title = '';
+    };
 
-  const parseMinutes = (timeStr) => {
-    if (!timeStr) return null;
-    if (!timeStr.includes('AM') && !timeStr.includes('PM')) {
-      const parts = timeStr.split(':');
-      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-    }
-    const [time, meridiem] = timeStr.split(' ');
-    if (!meridiem) return null;
-    let [h, m] = time.split(':').map(Number);
-    if (meridiem === 'PM' && h !== 12) h += 12;
-    if (meridiem === 'AM' && h === 12) h = 0;
-    return h * 60 + m;
-  };
-
-  const calculateMinutesWorked = (timeIn, timeOut, session) => {
-    if (!timeIn || !timeOut) return 0;
-    const inMinutes = parseMinutes(timeIn);
-    const outMinutes = parseMinutes(timeOut);
-    if (inMinutes === null || outMinutes === null) return 0;
-    if (inMinutes === outMinutes) return 0;
-    
-    const morningBaseline = 8 * 60;
-    const afternoonBaseline = 13 * 60;
-    const overtimeBaseline = 19 * 60;
-    const morningGrace = 8 * 60 + 5;
-    const afternoonGrace = 13 * 60 + 5;
-    const overtimeGrace = 19 * 60 + 5;
-    const morningEnd = 12 * 60;
-    const afternoonEnd = 17 * 60;
-    const overtimeEnd = 22 * 60;
-    
-    if (session === 'Morning') {
-      const effectiveStart = inMinutes <= morningGrace ? morningBaseline : inMinutes;
-      const effectiveEnd = Math.min(outMinutes, morningEnd);
-      return Math.max(0, effectiveEnd - effectiveStart);
-    } else if (session === 'Afternoon') {
-      const effectiveStart = inMinutes <= afternoonGrace ? afternoonBaseline : inMinutes;
-      const effectiveEnd = Math.min(outMinutes, afternoonEnd);
-      return Math.max(0, effectiveEnd - effectiveStart);
-    } else if (session === 'Overtime') {
-      const effectiveStart = inMinutes <= overtimeGrace ? overtimeBaseline : inMinutes;
-      const effectiveEnd = Math.min(outMinutes, overtimeEnd);
-      return Math.max(0, effectiveEnd - effectiveStart);
-    }
-    return 0;
-  };
-
-  const determineSession = (timeIn) => {
-    if (!timeIn) return null;
-    let hour;
-    if (timeIn.includes('AM') || timeIn.includes('PM')) {
-      const [time] = timeIn.split(' ');
-      const [h] = time.split(':');
-      hour = parseInt(h, 10);
-      if (timeIn.includes('PM') && hour !== 12) hour += 12;
-      if (timeIn.includes('AM') && hour === 12) hour = 0;
-    } else {
-      const [h] = timeIn.split(':');
-      hour = parseInt(h, 10);
-    }
-    if (hour < 12) return 'Morning';
-    if (hour >= 12 && hour < 18) return 'Afternoon';
-    return 'Overtime';
-  };
-
-  const formatTime = (timeStr) => {
-    if (!timeStr || timeStr === '-') return '-';
-    if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
-    const [hours, minutes] = timeStr.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
-
-  const fetchAttendance = async () => {
-    setLoading(true);
-    try {
-      const { data } = await axios.get(`${API}/attendance/all`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      let filtered = data.filter(a => a.user_id === internId);
-      
-      // Filter by month range
-      if (startMonth && endMonth) {
-        filtered = filtered.filter(a => {
-          const recordDate = new Date(a.date);
-          const recordMonth = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`;
-          return recordMonth >= startMonth && recordMonth <= endMonth;
-        });
+    const handleAfterPrint = () => {
+      if (savedTitleRef.current) {
+        document.title = savedTitleRef.current;
       }
-      
-      const consolidatedByDate = {};
-      filtered.forEach(entry => {
-        if (!consolidatedByDate[entry.date]) {
-          consolidatedByDate[entry.date] = {
-            date: entry.date,
-            morning_time_in: null,
-            morning_time_out: null,
-            afternoon_time_in: null,
-            afternoon_time_out: null,
-            ot_time_in: null,
-            ot_time_out: null,
-            total_minutes_worked: 0
-          };
-        }
-        
-        const record = consolidatedByDate[entry.date];
-        const session = determineSession(entry.time_in);
-        
-        if (session === 'Morning') {
-          record.morning_time_in = entry.time_in;
-          record.morning_time_out = entry.time_out;
-        } else if (session === 'Afternoon') {
-          record.afternoon_time_in = entry.time_in;
-          record.afternoon_time_out = entry.time_out;
-        } else if (session === 'Overtime') {
-          record.ot_time_in = entry.time_in;
-          record.ot_time_out = entry.time_out;
-        }
-        
-        let minutesWorked = 0;
-        if (entry.total_minutes_worked) {
-          minutesWorked = entry.total_minutes_worked;
-        } else if (entry.time_out) {
-          minutesWorked = calculateMinutesWorked(entry.time_in, entry.time_out, session);
-        }
-        record.total_minutes_worked += minutesWorked;
-      });
-      
-      setAttendance(Object.values(consolidatedByDate).sort((a, b) => new Date(a.date) - new Date(b.date)));
-    } catch (error) {
-      console.error('Error fetching attendance:', error);
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      if (savedTitleRef.current) {
+        document.title = savedTitleRef.current;
+      }
+    };
+  }, []);
+
+  const monthsToRender = useMemo(() => {
+    const baseMonths = getMonthsInRange(startMonth, endMonth);
+
+    if (baseMonths.length === 0) {
+      return [];
     }
-    setLoading(false);
+
+    if (baseMonths.length % 2 !== 0) {
+      const [yearText, monthText] = baseMonths[baseMonths.length - 1].split('-');
+      const nextMonthDate = new Date(parseInt(yearText, 10), parseInt(monthText, 10) - 1, 1);
+      nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+      baseMonths.push(toMonthKey(nextMonthDate));
+    }
+
+    return baseMonths;
+  }, [startMonth, endMonth]);
+
+  const monthPairs = useMemo(() => {
+    const pairs = [];
+
+    for (let index = 0; index < monthsToRender.length; index += 2) {
+      pairs.push([monthsToRender[index], monthsToRender[index + 1]]);
+    }
+
+    return pairs;
+  }, [monthsToRender]);
+
+  useEffect(() => {
+    if (!token || !internId || monthsToRender.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchAttendance = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const { data } = await axios.get(`${API}/attendance/all`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const monthSet = new Set(monthsToRender);
+        const nextData = {};
+
+        monthsToRender.forEach((monthKey) => {
+          nextData[monthKey] = createEmptyMonthData(monthKey);
+        });
+
+        (data || [])
+          .filter((entry) => entry.user_id === internId)
+          .forEach((entry) => {
+            const monthKey = getMonthKeyFromDate(entry.date);
+            if (!monthSet.has(monthKey)) return;
+
+            const day = getDayFromDate(entry.date);
+            if (day < 1 || day > 31) return;
+
+            const monthData = nextData[monthKey];
+            if (!monthData || day > monthData.daysInMonth) return;
+
+            const row = monthData.rows[day - 1];
+            const session = determineSession(entry.time_in);
+            const timeIn = toTimeInput(entry.time_in);
+            const timeOut = toTimeInput(entry.time_out);
+
+            if (session === 'Morning') {
+              row.amIn = chooseTime(row.amIn, timeIn, 'min');
+              row.amOut = chooseTime(row.amOut, timeOut, 'max');
+            } else if (session === 'Afternoon') {
+              row.pmIn = chooseTime(row.pmIn, timeIn, 'min');
+              row.pmOut = chooseTime(row.pmOut, timeOut, 'max');
+            }
+          });
+
+        if (!cancelled) {
+          setDtrData(nextData);
+        }
+      } catch (fetchError) {
+        console.error('Failed to fetch DTR data:', fetchError);
+        if (!cancelled) {
+          setError('Failed to load attendance records for printing.');
+          setDtrData({});
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchAttendance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, internId, monthsToRender]);
+
+  const monthStats = useMemo(() => {
+    const stats = {};
+
+    monthsToRender.forEach((monthKey) => {
+      const monthData = dtrData[monthKey] || createEmptyMonthData(monthKey);
+      let totalMinutes = 0;
+      let lateMinutes = 0;
+
+      monthData.rows.forEach((row) => {
+        if (row.day > monthData.daysInMonth) return;
+        totalMinutes += calculateDailyMinutes(row, officialHours);
+        lateMinutes += calculateDailyLateMinutes(row, officialHours);
+      });
+
+      stats[monthKey] = {
+        totalMinutes,
+        lateMinutes
+      };
+    });
+
+    return stats;
+  }, [dtrData, monthsToRender, officialHours]);
+
+  const handleFieldChange = (monthKey, day, field, value) => {
+    const sanitizedValue = toTimeInput(value);
+
+    setDtrData((prev) => {
+      const monthData = prev[monthKey] || createEmptyMonthData(monthKey);
+      const rows = monthData.rows.map((row) => {
+        if (row.day !== day) return row;
+        return { ...row, [field]: sanitizedValue };
+      });
+
+      return {
+        ...prev,
+        [monthKey]: {
+          ...monthData,
+          rows
+        }
+      };
+    });
   };
 
   const handlePrint = () => {
-    console.log('=== PRINT DEBUG ===');
-    const printContents = document.querySelectorAll('.print-content');
-    console.log(`Total pages: ${printContents.length}`);
-    
-    printContents.forEach((page, idx) => {
-      const rect = page.getBoundingClientRect();
-      const monthSections = page.querySelectorAll('.month-section');
-      console.log(`Page ${idx + 1}:`);
-      console.log(`  - Height: ${rect.height}px (${(rect.height / 37.795).toFixed(2)}cm)`);
-      console.log(`  - Months: ${monthSections.length}`);
-      monthSections.forEach((section, mIdx) => {
-        const mRect = section.getBoundingClientRect();
-        const style = window.getComputedStyle(section);
-        console.log(`    Month ${mIdx + 1}: height=${mRect.height}px, position=${style.position}, top=${style.top}`);
-      });
-    });
-    
-    setTimeout(() => {
-      console.log('\n=== AFTER PRINT DIALOG ===');
-      const afterPrintContents = document.querySelectorAll('.print-content');
-      console.log(`Pages after print: ${afterPrintContents.length}`);
-      afterPrintContents.forEach((page, idx) => {
-        const rect = page.getBoundingClientRect();
-        console.log(`Page ${idx + 1}: ${rect.height}px (${(rect.height / 37.795).toFixed(2)}cm)`);
-      });
-      console.log('==================\n');
-    }, 100);
-    
     window.print();
   };
 
-  const getMonthsInRange = () => {
-    if (!startMonth || !endMonth) return [];
-    
-    const months = [];
-    const start = new Date(startMonth + '-01');
-    const end = new Date(endMonth + '-01');
-    
-    let current = new Date(start);
-    while (current <= end) {
-      months.push(`${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`);
-      current.setMonth(current.getMonth() + 1);
+  const renderTimeCell = (monthKey, row, field) => {
+    if (row.dayType === 'invalid') {
+      return <td><span className="print-value" /></td>;
     }
-    
-    return months;
+
+    const value = row[field] || '';
+
+    return (
+      <td>
+        <input
+          type="time"
+          className="time-input screen-only"
+          value={value}
+          placeholder="--:--"
+          onChange={(event) => handleFieldChange(monthKey, row.day, field, event.target.value)}
+        />
+        <span className="print-value">{formatTimeForPrint(value)}</span>
+      </td>
+    );
   };
 
-  const groupMonthsForPages = () => {
-    const months = getMonthsInRange();
-    const pages = [];
-    
-    for (let i = 0; i < months.length; i += 2) {
-      pages.push(months.slice(i, i + 2));
-    }
-    
-    return pages;
-  };
+  const DTRForm = ({ monthKey }) => {
+    const monthData = dtrData[monthKey] || createEmptyMonthData(monthKey);
+    const totals = monthStats[monthKey] || { totalMinutes: 0, lateMinutes: 0 };
+    const totalHours = Math.floor(totals.totalMinutes / 60);
+    const totalMins = totals.totalMinutes % 60;
+    const officialHoursText = `${formatTimeForPrint(officialHours.amIn)} - ${formatTimeForPrint(officialHours.amOut)} / ${formatTimeForPrint(officialHours.pmIn)} - ${formatTimeForPrint(officialHours.pmOut)}`;
 
-  const getAttendanceForMonth = (month) => {
-    return attendance.filter(record => {
-      const recordDate = new Date(record.date);
-      const recordMonth = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`;
-      return recordMonth === month;
-    });
-  };
+    return (
+      <section className="dtr-form">
+        <div className="dtr-header">
+          <h2>DAILY TIME RECORD</h2>
+          <div className="name-line-wrap">
+            <span className="name-value">{internName || ''}</span>
+          </div>
+          <p className="name-caption">Name</p>
+        </div>
 
-  const calculateSummaryForMonth = (monthAttendance) => {
-    let totalAttendance = 0;
-    let totalAbsences = 0;
-    let totalOTMinutes = 0;
-    let lateCount = 0;
-    let lateMinutes = 0;
-    let earlyCount = 0;
-    let earlyMinutes = 0;
+        <div className="dtr-meta-lines">
+          <div className="meta-line">
+            <span className="meta-label">For the month of</span>
+            <span className="meta-fill">{formatMonthLabel(monthKey)}</span>
+          </div>
+          <div className="meta-line">
+            <span className="meta-label">Office Hours (regular days)</span>
+            <span className="meta-fill">{officialHoursText}</span>
+          </div>
+          <div className="meta-line">
+            <span className="meta-label">Arrival &amp; Departure</span>
+            <span className="meta-fill" />
+          </div>
+          <div className="meta-line">
+            <span className="meta-label">Saturdays</span>
+            <span className="meta-fill" />
+          </div>
+        </div>
 
-    monthAttendance.forEach(record => {
-      const hasAnyAttendance = record.morning_time_in || record.afternoon_time_in;
-      if (hasAnyAttendance) totalAttendance++;
-      else totalAbsences++;
+        <div className="dtr-grid-wrap">
+          <table className="dtr-grid">
+          <thead>
+            <tr>
+              <th rowSpan="2" className="day-index-header">&nbsp;</th>
+              <th colSpan="2">A.M.</th>
+              <th colSpan="2">P.M.</th>
+              <th rowSpan="2">Hours</th>
+              <th rowSpan="2">Min.</th>
+            </tr>
+            <tr>
+              <th>Arrival</th>
+              <th>Departure</th>
+              <th>Arrival</th>
+              <th>Departure</th>
+            </tr>
+          </thead>
+          <tbody>
+            {monthData.rows.map((row) => {
+              const dailyMinutes = row.dayType === 'invalid' ? 0 : calculateDailyMinutes(row, officialHours);
 
-      if (record.morning_time_in) {
-        const inMin = parseMinutes(record.morning_time_in);
-        const graceMin = 8 * 60 + 5;
-        if (inMin > graceMin) {
-          lateCount++;
-          lateMinutes += inMin - (8 * 60);
-        }
-      }
-      if (record.afternoon_time_in) {
-        const inMin = parseMinutes(record.afternoon_time_in);
-        const graceMin = 13 * 60 + 5;
-        if (inMin > graceMin) {
-          lateCount++;
-          lateMinutes += inMin - (13 * 60);
-        }
-      }
+              return (
+                <tr key={`${monthKey}-${row.day}`} className={`${row.dayType}-row`}>
+                  <td className="day-cell">
+                    <span className="day-number">{row.day}</span>
+                  </td>
+                  {renderTimeCell(monthKey, row, 'amIn')}
+                  {renderTimeCell(monthKey, row, 'amOut')}
+                  {renderTimeCell(monthKey, row, 'pmIn')}
+                  {renderTimeCell(monthKey, row, 'pmOut')}
+                  <td>{dailyMinutes > 0 ? Math.floor(dailyMinutes / 60) : ''}</td>
+                  <td>{dailyMinutes > 0 ? dailyMinutes % 60 : ''}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="total-row">
+              <td colSpan="5">Total</td>
+              <td>{totalHours}</td>
+              <td>{totalMins}</td>
+            </tr>
+          </tfoot>
+          </table>
+        </div>
 
-      if (record.morning_time_out) {
-        const outMin = parseMinutes(record.morning_time_out);
-        const expectedMin = 12 * 60;
-        if (outMin < expectedMin) {
-          earlyCount++;
-          earlyMinutes += expectedMin - outMin;
-        }
-      }
-      if (record.afternoon_time_out) {
-        const outMin = parseMinutes(record.afternoon_time_out);
-        const expectedMin = 17 * 60;
-        if (outMin < expectedMin) {
-          earlyCount++;
-          earlyMinutes += expectedMin - outMin;
-        }
-      }
+        <div className="dtr-footer">
+          <p className="legal-text">
+            I certify on my honor that the above is true and correct record of the hours of work
+            performed, record of which was made daily at the time of arrival and departure from office.
+          </p>
 
-      if (record.ot_time_in && record.ot_time_out) {
-        totalOTMinutes += calculateMinutesWorked(record.ot_time_in, record.ot_time_out, 'Overtime');
-      }
-    });
+          <div className="signature-block employee-signature">
+            <div className="signature-line" />
+            <p className="signature-label">(Signature)</p>
+          </div>
 
-    return {
-      totalAttendance,
-      totalAbsences,
-      otHours: Math.floor(totalOTMinutes / 60),
-      otMinutes: totalOTMinutes % 60,
-      lateCount,
-      lateMinutes,
-      earlyCount,
-      earlyMinutes
-    };
-  };
+          <p className="verified-text">Verified as to the prescribed office hours</p>
 
-  const getMonthName = (monthStr) => {
-    const [year, month] = monthStr.split('-');
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    return `${monthNames[parseInt(month) - 1]} ${year}`;
-  };
+          <div className="signature-block">
+            <div className="signature-line" />
+            <p className="signature-label">(In-charge)</p>
+          </div>
 
-  const pages = groupMonthsForPages();
-
-  const formatDateWithDay = (dateStr) => {
-    const date = new Date(dateStr);
-    const day = date.getDate();
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return `${day}/${days[date.getDay()]}`;
+          <p className="late-note">Late Minutes: {totals.lateMinutes}</p>
+        </div>
+      </section>
+    );
   };
 
   return (
-    <div className="print-container">
-      <div className="no-print">
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div className="month-filter">
-            <label>Start Month:</label>
-            <input
-              type="month"
-              value={startMonth}
-              onChange={(e) => setStartMonth(e.target.value)}
-            />
-          </div>
-          <div className="month-filter">
-            <label>End Month:</label>
-            <input
-              type="month"
-              value={endMonth}
-              onChange={(e) => setEndMonth(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="button-group">
-          <button onClick={onClose} className="close-btn"><X size={16} /> Close</button>
-          <button onClick={handlePrint} className="print-btn"><Printer size={16} /> Print</button>
-        </div>
-      </div>
-      
-      {pages.map((pageMonths, pageIndex) => (
-        <div key={pageIndex} className="print-content">
-          <h1 className="print-title">Attendance and Time Report</h1>
-          
-          {loading ? (
-            <p>Loading...</p>
-          ) : (
-            <>
-              {pageMonths.map((month, monthIndex) => {
-                const monthAttendance = getAttendanceForMonth(month);
-                const monthSummary = calculateSummaryForMonth(monthAttendance);
-                
-                return (
-                  <div key={month} className="month-section">
-                    {/* HEADER SUMMARY SECTION */}
-                    <table className="summary-table">
-                      <tbody>
-                        <tr>
-                          <td className="label-cell">Dept.</td>
-                          <td colSpan="3">Main Office</td>
-                          <td className="label-cell">Name</td>
-                          <td colSpan="5">{internName}</td>
-                        </tr>
-                        <tr>
-                          <td className="label-cell">Date</td>
-                          <td colSpan="3">{getMonthName(month)}</td>
-                          <td className="label-cell">ID</td>
-                          <td colSpan="5">{internId.substring(0, 8)}</td>
-                        </tr>
-                        <tr>
-                          <td className="group-header">Absences (Day)</td>
-                          <td className="group-header">Leave (Day)</td>
-                          <td className="group-header">Business trip (Day)</td>
-                          <td className="group-header">Attendance (Day)</td>
-                          <td className="group-header" colSpan="2">OT</td>
-                          <td className="group-header" colSpan="2">Late</td>
-                          <td className="group-header" colSpan="2">Early</td>
-                        </tr>
-                        <tr>
-                          <td></td>
-                          <td></td>
-                          <td></td>
-                          <td></td>
-                          <td className="sub-header">Normal</td>
-                          <td className="sub-header">Special</td>
-                          <td className="sub-header">Frequency</td>
-                          <td className="sub-header">Min</td>
-                          <td className="sub-header">Frequency</td>
-                          <td className="sub-header">Min</td>
-                        </tr>
-                        <tr className="summary-data">
-                          <td>{monthSummary.totalAbsences.toFixed(1)}</td>
-                          <td>0.0</td>
-                          <td>0.0</td>
-                          <td>{monthSummary.totalAttendance.toFixed(1)}</td>
-                          <td>{String(monthSummary.otHours).padStart(2, '0')}:{String(monthSummary.otMinutes).padStart(2, '0')}</td>
-                          <td>00:00</td>
-                          <td>{monthSummary.lateCount}</td>
-                          <td>{monthSummary.lateMinutes}</td>
-                          <td>{monthSummary.earlyCount}</td>
-                          <td>{monthSummary.earlyMinutes}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+    <div className="dtr-print-container">
+      <div className="dtr-toolbar no-print">
+        <button type="button" className="dtr-close-icon-btn" onClick={onClose} aria-label="Back">
+          <X size={16} />
+        </button>
 
-                    {/* DETAILED DAILY REPORT SECTION */}
-                    <table className="detail-table">
-                      <thead>
-                        <tr>
-                          <th colSpan="7" className="section-title">All Report</th>
-                        </tr>
-                        <tr>
-                          <th rowSpan="2">Date/Week</th>
-                          <th colSpan="2">Morning</th>
-                          <th colSpan="2">Afternoon</th>
-                          <th colSpan="2">OT</th>
-                        </tr>
-                        <tr>
-                          <th>In</th>
-                          <th>Out</th>
-                          <th>In</th>
-                          <th>Out</th>
-                          <th>In</th>
-                          <th>Out</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {monthAttendance.map(record => (
-                          <tr key={record.date}>
-                            <td>{formatDateWithDay(record.date)}</td>
-                            <td>{record.morning_time_in ? formatTime(record.morning_time_in) : <span className="missed">Missed</span>}</td>
-                            <td>{record.morning_time_out ? formatTime(record.morning_time_out) : <span className="missed">Missed</span>}</td>
-                            <td>{record.afternoon_time_in ? formatTime(record.afternoon_time_in) : <span className="missed">Missed</span>}</td>
-                            <td>{record.afternoon_time_out ? formatTime(record.afternoon_time_out) : <span className="missed">Missed</span>}</td>
-                            <td>{record.ot_time_in ? formatTime(record.ot_time_in) : ''}</td>
-                            <td>{record.ot_time_out ? formatTime(record.ot_time_out) : ''}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })}
-            </>
-          )}
+        <div className="toolbar-group">
+          <label>
+            Start Month
+            <input type="month" value={startMonth} onChange={(event) => setStartMonth(event.target.value)} />
+          </label>
+          <label>
+            End Month
+            <input type="month" value={endMonth} onChange={(event) => setEndMonth(event.target.value)} />
+          </label>
         </div>
-      ))}
+
+        <div className="toolbar-actions">
+          <button type="button" className="dtr-print-btn" onClick={handlePrint}>
+            <Printer size={16} />
+            Print
+          </button>
+        </div>
+        <p className="dtr-print-tip">For a clean form, disable "Headers and footers" in the print dialog.</p>
+      </div>
+
+      {!loading && monthsToRender.length === 0 && (
+        <p className="dtr-message no-print">Please select a valid month range.</p>
+      )}
+      {error && <p className="dtr-message no-print">{error}</p>}
+
+      {loading ? (
+        <p className="dtr-message">Loading DTR...</p>
+      ) : (
+        <div className="dtr-pages">
+          {monthPairs.map(([leftMonth, rightMonth]) => (
+            <div key={`${leftMonth}-${rightMonth}`} className="dtr-print-page">
+              <div className="dtr-container">
+                <DTRForm monthKey={leftMonth} />
+                <div className="dtr-cut-line" aria-hidden="true" />
+                <DTRForm monthKey={rightMonth} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

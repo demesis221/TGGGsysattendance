@@ -452,7 +452,18 @@ function Reports({ token }) {
                 opacity: selectedInternId ? 1 : 0.5,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem'
+                gap: '0.5rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (selectedInternId) {
+                  e.currentTarget.style.background = '#218838';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedInternId) {
+                  e.currentTarget.style.background = '#28a745';
+                }
               }}
             >
               <Printer size={16} />
