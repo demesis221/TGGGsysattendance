@@ -43,6 +43,16 @@
   font-size: 0.85rem;
 }
 
+.toolbar-group select {
+  min-width: 180px;
+  border: 1px solid #9ca3af;
+  border-radius: 4px;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.85rem;
+  background: #fff;
+  cursor: pointer;
+}
+
 .official-hours-group label {
   min-width: 86px;
 }

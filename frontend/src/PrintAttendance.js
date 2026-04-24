@@ -272,6 +272,26 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
   const [endMonth, setEndMonth] = useState('');
   const [officialHours] = useState(DEFAULT_OFFICIAL_HOURS);
   const [dtrData, setDtrData] = useState({});
+  const [interns, setInterns] = useState([]);
+  const [currentInternId, setCurrentInternId] = useState(internId);
+  const [currentInternName, setCurrentInternName] = useState(internName);
+
+  useEffect(() => {
+    const fetchInterns = async () => {
+      try {
+        const { data } = await axios.get(`${API}/interns`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setInterns(data);
+      } catch (err) {
+        console.error('Failed to fetch interns:', err);
+      }
+    };
+    
+    if (token) {
+      fetchInterns();
+    }
+  }, [token]);
 
   useEffect(() => {
     const today = new Date();
@@ -340,7 +360,7 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
   }, [monthsToRender]);
 
   useEffect(() => {
-    if (!token || !internId || monthsToRender.length === 0) {
+    if (!token || !currentInternId || monthsToRender.length === 0) {
       setLoading(false);
       return;
     }
@@ -364,7 +384,7 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
         });
 
         (data || [])
-          .filter((entry) => entry.user_id === internId)
+          .filter((entry) => entry.user_id === currentInternId)
           .forEach((entry) => {
             const monthKey = getMonthKeyFromDate(entry.date);
             if (!monthSet.has(monthKey)) return;
@@ -410,7 +430,16 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
     return () => {
       cancelled = true;
     };
-  }, [token, internId, monthsToRender]);
+  }, [token, currentInternId, monthsToRender]);
+
+  const handleInternChange = (e) => {
+    const selectedId = e.target.value;
+    setCurrentInternId(selectedId);
+    const selectedIntern = interns.find(i => i.id === selectedId);
+    if (selectedIntern) {
+      setCurrentInternName(selectedIntern.full_name);
+    }
+  };
 
   const monthStats = useMemo(() => {
     const stats = {};
@@ -492,7 +521,7 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
         <div className="dtr-header">
           <h2>DAILY TIME RECORD</h2>
           <div className="name-line-wrap">
-            <span className="name-value">{internName || ''}</span>
+            <span className="name-value">{currentInternName || ''}</span>
           </div>
           <p className="name-caption">Name</p>
         </div>
@@ -594,6 +623,14 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
         </button>
 
         <div className="toolbar-group">
+          <label>
+            Select Intern
+            <select value={currentInternId} onChange={handleInternChange}>
+              {interns.map(intern => (
+                <option key={intern.id} value={intern.id}>{intern.full_name}</option>
+              ))}
+            </select>
+          </label>
           <label>
             Start Month
             <input type="month" value={startMonth} onChange={(event) => setStartMonth(event.target.value)} />
