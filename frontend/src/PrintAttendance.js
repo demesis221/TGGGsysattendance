@@ -275,6 +275,7 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
   const [interns, setInterns] = useState([]);
   const [currentInternId, setCurrentInternId] = useState(internId);
   const [currentInternName, setCurrentInternName] = useState(internName);
+  const [currentInternSignature, setCurrentInternSignature] = useState('');
 
   useEffect(() => {
     const fetchInterns = async () => {
@@ -283,6 +284,12 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
           headers: { Authorization: `Bearer ${token}` }
         });
         setInterns(data);
+
+        const selectedIntern = (data || []).find((intern) => intern.id === currentInternId);
+        if (selectedIntern) {
+          setCurrentInternName(selectedIntern.full_name || '');
+          setCurrentInternSignature(selectedIntern.signature_url || '');
+        }
       } catch (err) {
         console.error('Failed to fetch interns:', err);
       }
@@ -291,7 +298,15 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
     if (token) {
       fetchInterns();
     }
-  }, [token]);
+  }, [token, currentInternId]);
+
+  useEffect(() => {
+    const selectedIntern = interns.find((intern) => intern.id === currentInternId);
+    if (!selectedIntern) return;
+
+    setCurrentInternName(selectedIntern.full_name || '');
+    setCurrentInternSignature(selectedIntern.signature_url || '');
+  }, [interns, currentInternId]);
 
   useEffect(() => {
     const today = new Date();
@@ -438,6 +453,7 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
     const selectedIntern = interns.find(i => i.id === selectedId);
     if (selectedIntern) {
       setCurrentInternName(selectedIntern.full_name);
+      setCurrentInternSignature(selectedIntern.signature_url || '');
     }
   };
 
@@ -598,6 +614,12 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
           </p>
 
           <div className="signature-block employee-signature">
+            {currentInternSignature && (
+              <div className="signature-image-wrap">
+                <img src={currentInternSignature} alt="Intern signature" />
+              </div>
+            )}
+            <p className="signature-name">{currentInternName || ''}</p>
             <div className="signature-line" />
             <p className="signature-label">(Signature)</p>
           </div>
