@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Alert from './components/Alert';
 import { CardSkeleton } from './components/SkeletonLoader';
@@ -8,10 +8,14 @@ const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 function Profile({ token, user, onLogout }) {
   const [profile, setProfile] = useState({ full_name: '', email: '' });
   const [profilePic, setProfilePic] = useState(null);
+  const signatureCanvasRef = useRef(null);
+  const [isDrawingSignature, setIsDrawingSignature] = useState(false);
+  const [hasSignatureStroke, setHasSignatureStroke] = useState(false);
   const [alert, setAlert] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [password, setPassword] = useState({ new: '', confirm: '' });
   const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [showSignatureSection, setShowSignatureSection] = useState(false);
   const [totalHours, setTotalHours] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCharLimitModal, setShowCharLimitModal] = useState(false);
@@ -175,6 +179,161 @@ function Profile({ token, user, onLogout }) {
     }
   };
 
+  const getSignaturePosition = (event) => {
+    const canvas = signatureCanvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const point = event.touches?.[0] || event.changedTouches?.[0] || event;
+    const clientX = point.clientX;
+    const clientY = point.clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+  };
+
+  const startSignatureDrawing = (event) => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const { x, y } = getSignaturePosition(event);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setIsDrawingSignature(true);
+  };
+
+  const drawSignature = (event) => {
+    if (!isDrawingSignature) return;
+
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const { x, y } = getSignaturePosition(event);
+
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    setHasSignatureStroke(true);
+  };
+
+  const endSignatureDrawing = () => {
+    if (!isDrawingSignature) return;
+    setIsDrawingSignature(false);
+  };
+
+  const clearSignatureCanvas = () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSignatureStroke(false);
+  };
+
+  const getTrimmedSignatureBlob = async () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return null;
+
+    const ctx = canvas.getContext('2d');
+    const { width, height } = canvas;
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const alpha = data[(y * width + x) * 4 + 3];
+        if (alpha > 0) {
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (maxX < 0 || maxY < 0) return null;
+
+    const pad = 8;
+    const cropX = Math.max(0, minX - pad);
+    const cropY = Math.max(0, minY - pad);
+    const cropW = Math.min(width - cropX, (maxX - minX + 1) + (pad * 2));
+    const cropH = Math.min(height - cropY, (maxY - minY + 1) + (pad * 2));
+
+    const croppedCanvas = document.createElement('canvas');
+    croppedCanvas.width = cropW;
+    croppedCanvas.height = cropH;
+
+    const croppedCtx = croppedCanvas.getContext('2d');
+    croppedCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+    const blob = await new Promise((resolve) => {
+      croppedCanvas.toBlob((result) => resolve(result), 'image/png');
+    });
+
+    return blob;
+  };
+
+  const uploadSignature = async () => {
+    if (!hasSignatureStroke) {
+      showAlert('error', 'No Signature', 'Please draw your signature first.');
+      return;
+    }
+
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+
+    const blob = await getTrimmedSignatureBlob();
+    if (!blob) {
+      showAlert('error', 'No Signature', 'Please draw your signature first.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('signature_file', blob, 'signature.png');
+
+    try {
+      await axios.post(`${API}/profile/signature`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      showAlert('success', 'Signature Updated', 'Your signature has been updated successfully.');
+      clearSignatureCanvas();
+      fetchProfile();
+    } catch (err) {
+      const errorMsg = err.response?.status === 404
+        ? 'Signature API endpoint not found. Please restart and update the backend server.'
+        : err.response?.data?.error || 'Failed to upload signature.';
+      showAlert('error', 'Upload Failed', errorMsg);
+    }
+  };
+
+  const removeSignature = async () => {
+    try {
+      await axios.delete(`${API}/profile/signature`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showAlert('success', 'Signature Removed', 'Your signature has been removed successfully.');
+      clearSignatureCanvas();
+      fetchProfile();
+    } catch (err) {
+      const errorMsg = err.response?.status === 404
+        ? 'Signature API endpoint not found. Please restart and update the backend server.'
+        : err.response?.data?.error || 'Failed to remove signature.';
+      showAlert('error', 'Delete Failed', errorMsg);
+    }
+  };
+
   const updatePassword = async () => {
     if (password.new !== password.confirm) {
       showAlert('error', 'Password Mismatch', 'Passwords do not match.');
@@ -196,6 +355,8 @@ function Profile({ token, user, onLogout }) {
       showAlert('error', 'Update Failed', err.response?.data?.error || 'Failed to set password.');
     }
   };
+
+  const hasSavedSignature = Boolean(profile.signature_url);
 
   return (
     <div>
@@ -530,6 +691,141 @@ function Profile({ token, user, onLogout }) {
                   >
                     Update Password
                   </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#00273C', borderRadius: '8px', border: '1px solid rgba(255, 113, 32, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showSignatureSection ? '1rem' : '0' }}>
+                <div>
+                  <h4 style={{ color: '#e8eaed', fontSize: '1rem', marginBottom: '0.25rem' }}>Signature</h4>
+                  <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: 0 }}>
+                    Set a signature for documents and DTR print view.
+                  </p>
+                  <p style={{ color: hasSavedSignature ? '#28a745' : '#f59e0b', fontSize: '0.8rem', marginTop: '0.35rem', marginBottom: 0, fontWeight: 600 }}>
+                    {hasSavedSignature ? 'Status: Signature is set' : 'Status: No signature set'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSignatureSection(!showSignatureSection)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'transparent',
+                    color: '#FF7120',
+                    border: '1px solid rgba(255, 113, 32, 0.3)',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  {showSignatureSection ? 'Close' : 'Set Signature'}
+                </button>
+              </div>
+
+              {showSignatureSection && (
+                <div>
+                  {profile.signature_url ? (
+                    <div style={{
+                      width: '100%',
+                      minHeight: '90px',
+                      borderRadius: '8px',
+                      background: '#001a2b',
+                      border: '1px dashed rgba(255, 255, 255, 0.25)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0.75rem',
+                      marginBottom: '0.75rem'
+                    }}>
+                      <img
+                        src={profile.signature_url}
+                        alt="Profile signature"
+                        style={{ maxWidth: '100%', maxHeight: '75px', objectFit: 'contain' }}
+                      />
+                    </div>
+                  ) : (
+                    <p style={{ color: '#a0a4a8', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                      No signature uploaded yet.
+                    </p>
+                  )}
+
+                  <div style={{
+                    width: '100%',
+                    background: '#ffffff',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    overflow: 'hidden',
+                    marginBottom: '0.75rem'
+                  }}>
+                    <canvas
+                      ref={signatureCanvasRef}
+                      width={520}
+                      height={140}
+                      onPointerDown={startSignatureDrawing}
+                      onPointerMove={drawSignature}
+                      onPointerUp={endSignatureDrawing}
+                      onPointerCancel={endSignatureDrawing}
+                      onPointerLeave={endSignatureDrawing}
+                      style={{
+                        width: '100%',
+                        height: '140px',
+                        display: 'block',
+                        touchAction: 'none',
+                        cursor: 'crosshair'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button
+                      onClick={clearSignatureCanvas}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: 'transparent',
+                        color: '#a0a4a8',
+                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      Clear
+                    </button>
+
+                    <button
+                      onClick={uploadSignature}
+                      style={{
+                        background: '#FF7120',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '0.5rem 1rem',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      Save Signature
+                    </button>
+
+                    {profile.signature_url && (
+                      <button
+                        onClick={removeSignature}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          background: 'transparent',
+                          color: '#ff9f9f',
+                          border: '1px solid rgba(255, 159, 159, 0.45)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        Remove Signature
+                      </button>
+                    )}
+
+                    <span style={{ color: '#a0a4a8', fontSize: '0.85rem' }}>Sign with mouse or finger</span>
+                  </div>
                 </div>
               )}
             </div>

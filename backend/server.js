@@ -669,7 +669,7 @@ app.get('/api/interns', auth, async (req, res) => {
 
   const { data, error } = await supabaseAdmin
     .from('profiles')
-    .select('id, full_name, profile_picture, is_leader, additional_hours')
+    .select('id, full_name, profile_picture, signature_url, is_leader, additional_hours')
     .eq('role', 'intern')
     .order('full_name');
 
@@ -816,6 +816,149 @@ app.post('/api/profile/picture', auth, upload.single('profile_pic'), async (req,
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'File size exceeds 5MB limit' });
     }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/profile/signature', auth, upload.single('signature_file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    console.log('Signature upload:', { userId: req.user.id, fileName: req.file.originalname });
+
+    const extractSignaturePath = (url) => {
+      if (!url) return null;
+      const marker = '/object/public/profilesignature/';
+      const markerIndex = url.indexOf(marker);
+      if (markerIndex < 0) return null;
+
+      const encodedPath = url.slice(markerIndex + marker.length);
+      const decodedPath = decodeURIComponent(encodedPath);
+      return decodedPath.split('?')[0];
+    };
+
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+      .from('profiles')
+      .select('signature_url')
+      .eq('id', req.user.id)
+      .single();
+
+    if (existingProfileError) {
+      return res.status(500).json({ error: existingProfileError.message });
+    }
+
+    const oldSignaturePath = extractSignaturePath(existingProfile?.signature_url);
+
+    const fileExt = (req.file.originalname.split('.').pop() || 'png').toLowerCase();
+    const fileName = `${req.user.id}/signature_${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('profilesignature')
+      .upload(fileName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Signature storage upload error:', uploadError);
+      return res.status(500).json({ error: uploadError.message });
+    }
+
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from('profilesignature')
+      .getPublicUrl(fileName);
+
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update({ signature_url: publicUrl })
+      .eq('id', req.user.id);
+
+    if (error) {
+      console.error('Signature database update error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (oldSignaturePath && oldSignaturePath !== fileName) {
+      const { error: cleanupError } = await supabaseAdmin.storage
+        .from('profilesignature')
+        .remove([oldSignaturePath]);
+
+      if (cleanupError) {
+        console.error('Old signature cleanup warning:', cleanupError.message);
+      }
+    }
+
+    console.log('Profile signature uploaded successfully:', publicUrl);
+    res.json({ success: true, url: publicUrl });
+  } catch (err) {
+    console.error('Profile signature upload exception:', err);
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/profile/signature', auth, async (req, res) => {
+  try {
+    const extractSignaturePath = (url) => {
+      if (!url) return null;
+      const marker = '/object/public/profilesignature/';
+      const markerIndex = url.indexOf(marker);
+      if (markerIndex < 0) return null;
+
+      const encodedPath = url.slice(markerIndex + marker.length);
+      const decodedPath = decodeURIComponent(encodedPath);
+      return decodedPath.split('?')[0];
+    };
+
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('signature_url')
+      .eq('id', req.user.id)
+      .single();
+
+    if (profileError) {
+      return res.status(500).json({ error: profileError.message });
+    }
+
+    const fallbackPaths = [
+      `${req.user.id}/signature.png`,
+      `${req.user.id}/signature.jpg`,
+      `${req.user.id}/signature.jpeg`,
+      `${req.user.id}/signature.webp`
+    ];
+
+    const deletePaths = new Set(fallbackPaths);
+
+    if (profile?.signature_url) {
+      const objectPath = extractSignaturePath(profile.signature_url);
+      if (objectPath) {
+        deletePaths.add(objectPath);
+      }
+    }
+
+    const { error: deleteError } = await supabaseAdmin.storage
+      .from('profilesignature')
+      .remove(Array.from(deletePaths));
+
+    if (deleteError) {
+      console.error('Signature storage delete error:', deleteError);
+      return res.status(500).json({ error: deleteError.message });
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from('profiles')
+      .update({ signature_url: null })
+      .eq('id', req.user.id);
+
+    if (updateError) {
+      return res.status(500).json({ error: updateError.message });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Profile signature delete exception:', err);
     res.status(500).json({ error: err.message });
   }
 });
